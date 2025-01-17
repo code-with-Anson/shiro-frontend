@@ -1,13 +1,15 @@
-<script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-</script>
-
 <template>
-        <RouterLink to="/">账单</RouterLink>
-        <RouterLink to="/renew_bill">循环</RouterLink>
-        <RouterLink to="/me">个人</RouterLink>
-  <RouterView />
+  <div id="app">
+    <desktopLayout v-if="!isMobile" />
+    <mobileLayout v-else />
+  </div>
 </template>
 
-<style scoped>
-</style>
+<script setup lang="ts">
+import { useDeviceStore } from "./pinia/deviceStore";
+import desktopLayout from "./defaultLayout/desktopLayout.vue";
+import mobileLayout from "./defaultLayout/mobileLayout.vue";
+
+//检测是否为移动设备
+const isMobile = useDeviceStore().isMobile;
+</script>
