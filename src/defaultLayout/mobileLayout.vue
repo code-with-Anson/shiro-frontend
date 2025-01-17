@@ -13,9 +13,11 @@
 
 <script>
 import { ref } from "vue";
+import { useTabbar } from "@/logic/useTabbar";
+
 export default {
   setup() {
-    const active = ref(0);
+    const { active } = useTabbar();
     return { active };
   },
 };
