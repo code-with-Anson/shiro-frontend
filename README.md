@@ -1,33 +1,73 @@
-# shiro-frontend
+# 1.“Shiro-汐落” 是什么？
 
-This template should help get you started developing with Vue 3 in Vite.
+---
 
-## Recommended IDE Setup
+**Shiro**是软件的英文名，**汐落**是软件的中文名
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+下文中统一使用  **汐落**  来代指本软件 汐落是一款个人财务管理软件，拥有以下核心功能：
 
-## Type Support for `.vue` Imports in TS
+## a.账单记录
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+这是汐落的基本功能 用户可以记录自己的账单，收入以及支出都可以记录 收入和支出可以选择对应的类型，比如：“饮食”，“购物”支出，“工资”，“兼职”收入
 
-## Customize configuration
+---
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+## b.循环付费商品记录
 
-## Project Setup
+这是一套和账单记录分离的系统，用来帮助用户记录自己的循环付费商品 可以记录商品的名称，为其添加图片进行简要提示，记录开始时间，结束时间，循环周期以及自动续费状态，用户选择付费周期并输入周期所需金额，汐落会自动帮助用户换算该商品的平均月付和平均年付价格，方便用户管理自己的付费情况
+
+---
+
+## c.数据展示
+
+我初步决定为汐落设计三个数据展示方面的模块
+
+### - 数据展示模块
+
+用于展示用户记录的账单情况，支持按月，按年指定查看账单
+
+### - 数据分析模块
+
+通过饼状图，柱状图，折线图来分析用户的消费行为，可以让用户清晰的明白自己的各项消费占比
+
+### - 数据导入导出模块
+
+这一部分我目前只想到导出为Excel，具体的导入功能我还没有想好
+
+---
+
+# 2.汐落的立意
+
+汐落，灵感源自日语 **shiro**，意为白色，象征着一种清晰与纯净的生活态度。 我相信，记账不该是复杂的，而是一种自然规律，就像潮水的涨落，让生活变得有序且宁静。 在汐落，每一笔记账，都是在为你的生活增添一种清晰的美感。
+
+---
+
+# 3.汐落-Frontend说明文档
+
+## 技术选型
+
+这是**"Shiro-汐落"**的前端项目，使用了**vue3**和**typescript**
+
+计划中会适配网页端和移动端，一开始是希望学习**flutter**或**ReactNative**来构建移动端，但是心力有限，只有这个寒假可以做点喜欢的事情，开学了要继续学习后端，所以决定使用已经有一些基础的**vue**来构建前端，并且通过判断网页宽度的方式来动态挂载两套路由
+
+一套路由用于桌面端网页展示，一套路由用于移动端网页展示
+
+**桌面端**ui使用**element plus**，**移动端**ui使用**vant**
+
+全力开发中！
+
+
+
+---
+
+**请先安装运行依赖：**
 
 ```sh
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+**运行项目：**
 
 ```sh
 npm run dev
-```
-
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
 ```
