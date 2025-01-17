@@ -12,7 +12,6 @@
 </template>
 
 <script>
-import { ref } from "vue";
 import { useTabbar } from "@/logic/useTabbar";
 
 export default {
