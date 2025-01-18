@@ -1,3 +1,4 @@
+import { useAuthStore } from "@/pinia/useAuthStore";
 import type { NavigationGuard } from "vue-router";
 
 // 解耦了检测登录状态的逻辑
@@ -6,10 +7,10 @@ import type { NavigationGuard } from "vue-router";
 // 这个逻辑可以应用在移动和网页端
 
 export const authGuard: NavigationGuard = (to, from, next) => {
-  const token = localStorage.getItem("token");
+  const isAuthenticated = useAuthStore().isAuthenticated;
   const allowedPaths = ["/login", "/register", "/lost"];
 
-  if (!token && !allowedPaths.includes(to.path)) {
+  if (!isAuthenticated && !allowedPaths.includes(to.path)) {
     next("/login");
   } else {
     next();
