@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import m_bill from "../views/mobile/m_bill.vue";
-import { authGuard } from "@/logic/authGuard";
+import { authGuard } from "@/utils/authGuard";
 
 // 这里是移动端路由，当检测到用户为桌面端就会应用这个路由
 // 通过动态导入的方式实现路由的按需加载，适配不同的设备

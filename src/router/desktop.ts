@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { authGuard } from "@/logic/authGuard";
+import { authGuard } from "@/utils/authGuard";
 import bill from "../views/desktop/bill.vue";
 
 // 这里是桌面端路由，当检测到用户为桌面端就会应用这个路由
