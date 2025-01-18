@@ -27,3 +27,12 @@ export const passwordRules: ValidationRule[] = [
     message: "密码在6到15位之间",
   },
 ];
+
+// 昵称验证规则
+export const usernameRules: ValidationRule[] = [
+  { required: true, message: "请填写昵称" },
+  {
+    validator: (value: string) => value.length >= 1 && value.length <= 8,
+    message: "昵称在1到8位之间",
+  },
+];
