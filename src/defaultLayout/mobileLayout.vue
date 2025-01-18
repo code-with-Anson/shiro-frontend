@@ -11,19 +11,15 @@
   </div>
 </template>
 
-<script>
+<script setup lang="ts">
 import { useTabbar } from "@/logic/useTabbar";
 import { useAuthStore } from "@/pinia/useAuthStore";
 import { onMounted } from "vue";
-export default {
-  setup() {
-    const { active } = useTabbar();
-    const isAuthenticated = useAuthStore().isAuthenticated;
 
-    onMounted(() => {
-      console.log("当前的登录状态: " + isAuthenticated);
-    });
-    return { active, isAuthenticated };
-  },
-};
+const { active } = useTabbar();
+const isAuthenticated = useAuthStore().isAuthenticated;
+
+onMounted(() => {
+  console.log("当前的登录状态: " + isAuthenticated);
+});
 </script>

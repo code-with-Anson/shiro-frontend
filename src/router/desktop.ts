@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { authGuard } from "@/logic/authGuard";
 import bill from "../views/desktop/bill.vue";
 
 // 这里是桌面端路由，当检测到用户为桌面端就会应用这个路由
@@ -22,12 +23,26 @@ const desktopRouter = createRouter({
     {
       path: "/me",
       name: "me",
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
       component: () => import("../views/desktop/me.vue"),
+    },
+    {
+      path: "/login",
+      name: "login",
+      component: () => import("../views/desktop/login.vue"),
+    },
+    {
+      path: "/register",
+      name: "register",
+      component: () => import("../views/desktop/register.vue"),
+    },
+    {
+      path: "/lost",
+      name: "lost",
+      component: () => import("../views/desktop/lost.vue"),
     },
   ],
 });
+
+desktopRouter.beforeEach(authGuard);
 
 export default desktopRouter;
