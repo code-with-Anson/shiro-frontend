@@ -1,29 +1,31 @@
 <template>
-  <!-- 顶部导航 -->
-  <van-nav-bar title="日常" right-text="🔍" />
+  <div>
+    <!-- 顶部导航 -->
+    <van-nav-bar title="日常" right-text="🔍" />
 
-  <!-- Sticky 固定顶部 -->
-  <van-sticky>
-    <van-cell
-      title="1月支出"
-      value="￥883.10"
-      label="本月收入 0.00"
-      value-class="highlight"
-    />
-  </van-sticky>
+    <!-- Sticky 固定顶部 -->
+    <van-sticky>
+      <van-cell
+        title="1月支出"
+        value="￥883.10"
+        label="本月收入 0.00"
+        value-class="highlight"
+      />
+    </van-sticky>
 
-  <!-- 记录列表 -->
-  <van-cell-group>
-    <van-cell
-      v-for="item in bills"
-      :key="item.date + item.category"
-      :title="item.category"
-      :label="item.date"
-      :value="`支出: ￥${item.amount}`"
-      :icon="item.icon"
-      is-link
-    />
-  </van-cell-group>
+    <!-- 记录列表 -->
+    <van-cell-group>
+      <van-cell
+        v-for="item in bills"
+        :key="item.date + item.category"
+        :title="item.category"
+        :label="item.date"
+        :value="`支出: ￥${item.amount}`"
+        :icon="item.icon"
+        is-link
+      />
+    </van-cell-group>
+  </div>
 </template>
 
 <script setup lang="ts">

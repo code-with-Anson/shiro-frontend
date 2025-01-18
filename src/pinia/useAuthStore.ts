@@ -5,28 +5,23 @@ export const useAuthStore = defineStore("auth", () => {
   // 定义状态
   const state = reactive({
     isAuthenticated: !!localStorage.getItem("token"),
-    token: null as string | null,
   });
-
-  // 定义 actions
-  const login = (token: string) => {
-    state.isAuthenticated = true;
-    state.token = token;
-    localStorage.setItem("token", token);
-  };
-
-  const logout = () => {
-    state.isAuthenticated = false;
-    state.token = null;
-    localStorage.removeItem("token");
-  };
 
   const initializeAuth = () => {
     const token = localStorage.getItem("token");
     if (token) {
-      state.token = token;
       state.isAuthenticated = true;
     }
+  };
+
+  // 设置认证状态
+  const setAuthState = (value: boolean) => {
+    state.isAuthenticated = value;
+  };
+
+  // 清除认证状态
+  const clearAuthState = () => {
+    state.isAuthenticated = false;
   };
 
   // 定义 getters
@@ -35,9 +30,9 @@ export const useAuthStore = defineStore("auth", () => {
   // 返回需要暴露的内容
   return {
     ...toRefs(state),
-    login,
-    logout,
     initializeAuth,
+    clearAuthState,
     isUserLoggedIn,
+    setAuthState,
   };
 });
