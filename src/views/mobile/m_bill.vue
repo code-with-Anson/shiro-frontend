@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import { onMounted } from "vue";
 
 const bills = ref([
   { category: "餐饮", amount: 100, date: "2021-01-01", icon: "smile-o" },
@@ -37,6 +38,10 @@ const bills = ref([
   { category: "购物", amount: 300, date: "2021-01-03", icon: "smile-o" },
   // 其他数据省略
 ]);
+
+onMounted(() => {
+  console.log("mounted");
+});
 </script>
 
 <style scoped>

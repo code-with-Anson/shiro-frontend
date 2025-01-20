@@ -19,6 +19,23 @@
   </div>
 </template>
 
+<script setup lang="ts">
+import { logout } from "@/api/user";
+import { useRouter } from "vue-router";
+import { showFailToast, showSuccessToast } from "vant";
+import "vant/lib/index.css";
+
+// 路由跳转
+const router = useRouter();
+
+// 退出登录
+const Logout = () => {
+  logout();
+  showSuccessToast("退出登录成功");
+  router.push("/login");
+};
+</script>
+
 <style>
 .van-button {
   width: 15rem; /* 或者其他适合的宽度 */
@@ -32,17 +49,3 @@
   height: 100vh; /* 使容器占满整个视口高度 */
 }
 </style>
-
-<script setup lang="ts">
-import { logout } from "@/api/user";
-import { useRouter } from "vue-router";
-
-// 路由跳转
-const router = useRouter();
-
-// 退出登录
-const Logout = () => {
-  logout();
-  router.push("/login");
-};
-</script>

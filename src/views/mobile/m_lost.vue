@@ -31,20 +31,6 @@
   </div>
 </template>
 
-<style>
-.van-button {
-  width: 15rem; /* 或者其他适合的宽度 */
-}
-
-.m_lost {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh; /* 使容器占满整个视口高度 */
-}
-</style>
-
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
@@ -61,3 +47,17 @@ const goToLogin = () => {
   router.push("/login");
 };
 </script>
+
+<style>
+.van-button {
+  width: 15rem; /* 或者其他适合的宽度 */
+}
+
+.m_lost {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh; /* 使容器占满整个视口高度 */
+}
+</style>

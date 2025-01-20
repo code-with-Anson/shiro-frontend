@@ -1,11 +1,7 @@
 import { useAuthStore } from "@/pinia/useAuthStore";
 import axiosInstance from "@/utils/axios";
 
-interface LoginRequest {
-  email: string;
-  password: string;
-}
-
+//定义返回的数据类型
 interface LoginResponse {
   id: number;
   token: string;
@@ -15,6 +11,14 @@ interface LoginResponse {
   avatar: string;
 }
 
+//定义返回的数据类型
+interface ApiResponse<T> {
+  code: number;
+  msg: string;
+  data: T;
+}
+
+// 用户登录
 export async function login(
   email: string,
   password: string
@@ -27,18 +31,24 @@ export async function login(
     });
 
     const loginData = response.data;
-    const authStore = useAuthStore();
     localStorage.setItem("token", loginData.token);
     localStorage.setItem("user", JSON.stringify(loginData));
     return loginData;
   } catch (error: any) {
-    // 统一处理错误
-    const errorMessage =
-      error.response?.data?.message || "登录失败，请稍后重试";
-    throw new Error(errorMessage);
+    if (error.response?.data) {
+      //从后端返回的错误信息中获取
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      //请求已经发出，但是没有收到响应
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      //其他错误
+      throw new Error("登录失败，请稍后重试");
+    }
   }
 }
 
+// 退出用户
 export function logout() {
   const authStore = useAuthStore();
   if (authStore.clearAuthState) {
@@ -50,4 +60,37 @@ export function logout() {
       (localStorage.getItem("user") ?? "") +
       authStore.isUserLoggedIn
   );
+}
+
+// 注册用户
+export async function register(
+  name: string,
+  email: string,
+  password: string
+): Promise<ApiResponse<string>> {
+  try {
+    //发送注册请求
+    const response = await axiosInstance.post<ApiResponse<string>>(
+      "/users/register",
+      {
+        name,
+        email,
+        password,
+      }
+    );
+
+    const loginData = response.data;
+    return loginData;
+  } catch (error: any) {
+    if (error.response?.data) {
+      //从后端返回的错误信息中获取
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      //请求已经发出，但是没有收到响应
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      //其他错误
+      throw new Error("注册失败，请稍后重试");
+    }
+  }
 }
