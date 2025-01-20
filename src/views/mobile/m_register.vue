@@ -35,7 +35,7 @@
           align-items: center;
         "
       >
-        <van-button round block type="primary" native-type="goToLogin">
+        <van-button round block type="primary" native-type="submit">
           注册
         </van-button>
         <van-button round block plain type="primary" @click="goToLogin">

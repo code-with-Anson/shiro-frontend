@@ -36,3 +36,15 @@ export const usernameRules: ValidationRule[] = [
     message: "昵称在1到8位之间",
   },
 ];
+
+// 验证码验证规则
+export const verificationCodeRules: ValidationRule[] = [
+  {
+    required: true,
+    message: "请填写验证码",
+  },
+  {
+    pattern: /^\d{6}$/,
+    message: "验证码是6位数字",
+  },
+];
