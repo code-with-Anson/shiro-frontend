@@ -84,25 +84,24 @@ const Login = async (values: { email: string; password: string }) => {
     console.log("提交的邮箱:", values.email);
     console.log("提交的密码:", values.password);
 
-    // 等待登录完成
-    await login(values.email, values.password);
+    // 1. 先进行登录
+    const loginData = await login(values.email, values.password);
 
-    // 确认 token 已经存在
+    // 2. 确保 token 存在
     const token = localStorage.getItem("token");
-    console.log("token:", token);
     if (!token) {
       throw new Error("登录失败：未获取到 token");
     }
+
+    // 3. 设置认证状态
     const authStore = useAuthStore();
-    authStore.setAuthState(true);
-    // 登录成功，进行路由跳转
+    authStore.checkAuth();
+
+    // 4. 路由跳转
     router.push("/");
-    window.location.reload();
   } catch (error) {
     // 错误处理
     console.error("登录失败:", error);
-    // 这里可以添加错误提示，比如使用 message 组件
-    // message.error("登录失败，请重试");
   }
 };
 </script>

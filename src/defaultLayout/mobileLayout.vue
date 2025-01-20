@@ -14,12 +14,9 @@
 <script setup lang="ts">
 import { useTabbar } from "@/utils/useTabbar";
 import { useAuthStore } from "@/pinia/useAuthStore";
-import { onMounted } from "vue";
+import { storeToRefs } from "pinia";
 
 const { active } = useTabbar();
-const isAuthenticated = useAuthStore().isAuthenticated;
-
-// onMounted(() => {
-//   console.log("当前的登录状态: " + isAuthenticated);
-// });
+const authStore = useAuthStore();
+const { isAuthenticated } = storeToRefs(authStore);
 </script>

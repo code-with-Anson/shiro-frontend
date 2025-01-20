@@ -7,10 +7,10 @@ import type { NavigationGuard } from "vue-router";
 // 这个逻辑可以应用在移动和网页端
 
 export const authGuard: NavigationGuard = (to, from, next) => {
-  const isAuthenticated = useAuthStore().isAuthenticated;
+  const authStore = useAuthStore();
   const allowedPaths = ["/login", "/register", "/lost"];
 
-  if (!isAuthenticated && !allowedPaths.includes(to.path)) {
+  if (!authStore.checkAuth() && !allowedPaths.includes(to.path)) {
     next("/login");
   } else {
     next();

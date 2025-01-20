@@ -7,21 +7,22 @@ export const useAuthStore = defineStore("auth", () => {
     isAuthenticated: !!localStorage.getItem("token"),
   });
 
-  const initializeAuth = () => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      state.isAuthenticated = true;
-    }
+  // 检查认证状态的方法
+  const checkAuth = () => {
+    state.isAuthenticated = !!localStorage.getItem("token");
+    return state.isAuthenticated;
   };
 
-  // 设置认证状态
-  const setAuthState = (value: boolean) => {
-    state.isAuthenticated = value;
+  // 初始化认证状态
+  const initializeAuth = () => {
+    checkAuth();
   };
 
   // 清除认证状态
   const clearAuthState = () => {
     state.isAuthenticated = false;
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
   };
 
   // 定义 getters
@@ -33,6 +34,6 @@ export const useAuthStore = defineStore("auth", () => {
     initializeAuth,
     clearAuthState,
     isUserLoggedIn,
-    setAuthState,
+    checkAuth,
   };
 });
