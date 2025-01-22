@@ -260,7 +260,7 @@ const handleAvatarChange = async (event: Event) => {
 const handleSubmit = async () => {
   try {
     let updateData;
-    if ((editType.value = "password")) {
+    if (editType.value === "password") {
       // 这里使用一个单独的newPassword.value 来存储密码
       // 因为下面这一行的存在：(user.value as any)[editType.value] = editValue.value;
       // 所以不能直接const一个updateData
