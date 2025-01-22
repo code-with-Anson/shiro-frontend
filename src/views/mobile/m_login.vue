@@ -67,29 +67,18 @@ const goToLost = () => {
 // 提交表单
 const Login = async (values: { email: string; password: string }) => {
   try {
-    // 打印登录信息
-    // console.log("提交", values);
-    // console.log("提交的邮箱:", values.email);
-    // console.log("提交的密码:", values.password);
-
     // 1. 先进行登录
     const loginData = await login(values.email, values.password);
-
-    // 2. 确保 token 存在
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("登录失败：未获取到 token");
-    }
     // 登录成功提示
     showSuccessToast({
       message: "登录成功",
       position: "middle",
     });
 
-    // 3. 设置认证状态
+    // 2. 设置认证状态
     const authStore = useAuthStore();
     authStore.checkAuth();
-    // 4. 路由跳转
+    // 3. 路由跳转
     router.push("/");
   } catch (error: any) {
     // 错误处理

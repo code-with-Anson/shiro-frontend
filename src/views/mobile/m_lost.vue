@@ -85,23 +85,19 @@ const sendEmail = async (values: { email: string }) => {
 
 const verify = async () => {
   try {
+    // 1.发送登录请求
     const loginData = await verifyAndLogin(code.value, email.value);
 
-    // 2. 确保 token 存在
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("登录失败：未获取到 token");
-    }
     // 登录成功提示
     showSuccessToast({
       message: "登录成功",
       position: "middle",
     });
 
-    // 3. 设置认证状态
+    // 2. 设置认证状态
     const authStore = useAuthStore();
     authStore.checkAuth();
-    // 4. 路由跳转
+    // 3. 路由跳转
     router.push("/");
   } catch (error: any) {
     // 错误处理

@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/pinia/useAuthStore";
 import axiosInstance from "@/utils/axios";
 
-//定义返回的数据类型
+//用户登录返回的数据模板
 interface LoginResponse {
   id: number;
   token: string;
@@ -11,7 +11,7 @@ interface LoginResponse {
   avatar: string;
 }
 
-//定义返回的数据类型
+//统一响应类R的数据类型
 interface ApiResponse<T> {
   code: number;
   msg: string;

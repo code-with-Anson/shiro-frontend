@@ -62,17 +62,16 @@ const registerUser = async (values: {
   password: string;
 }) => {
   try {
-    console.log("提交" + values);
-    console.log("提交的昵称: " + values.username);
-    console.log("提交的邮箱: " + values.email);
-    console.log("提交的密码: " + values.password);
+    // 1.发送注册请求
     const result = await register(
       values.username,
       values.email,
       values.password
     );
     console.log(result);
+    // 2.进行友好提示
     showSuccessToast("注册成功");
+    // 3.路由跳转
     router.push("/login");
   } catch (error: any) {
     // 错误处理
