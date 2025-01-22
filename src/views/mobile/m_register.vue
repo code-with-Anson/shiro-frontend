@@ -99,6 +99,6 @@ const goToLogin = () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh; /* 使容器占满整个视口高度 */
+  height: 90vh; /* 使容器占据较大的视口高度 */
 }
 </style>

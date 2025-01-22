@@ -18,6 +18,15 @@ interface UserInfo {
   avatar: string;
 }
 
+interface UpdateUserInfo {
+  userId?: number;
+  email?: string;
+  name?: string;
+  password?: string;
+  sex?: string;
+  avatar?: string;
+}
+
 //统一响应类R的数据类型
 interface ApiResponse<T> {
   code: number;
@@ -162,6 +171,30 @@ export async function verifyAndLogin(
 export async function getUserInfos(): Promise<UserInfo> {
   try {
     const userinfo = await axiosInstance.get<UserInfo>("/users/user-info");
+    return userinfo.data;
+  } catch (error: any) {
+    if (error.response?.data) {
+      //从后端返回的错误信息中获取
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      //请求已经发出，但是没有收到响应
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      //其他错误
+      throw new Error("请求失败，请稍后重试");
+    }
+  }
+}
+
+// 更新用户信息
+export async function updateUserInfos(
+  UpdateUserInfo: UpdateUserInfo
+): Promise<UserInfo> {
+  try {
+    const userinfo = await axiosInstance.post<UserInfo>(
+      "/users/update-user",
+      UpdateUserInfo
+    );
     return userinfo.data;
   } catch (error: any) {
     if (error.response?.data) {

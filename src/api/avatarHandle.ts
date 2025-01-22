@@ -94,7 +94,7 @@ const uploadToCOS = async (
 const updateBackend = async (imageUrl: string): Promise<UserInfo> => {
   try {
     const response = await axiosInstance.post<UserInfo>("/users/update-user", {
-      url: imageUrl,
+      avatar: imageUrl,
     });
 
     return response.data;
