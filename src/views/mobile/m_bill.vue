@@ -61,12 +61,6 @@ const getUserCategories = async () => {
   }
 };
 onMounted(() => {
-  // 这里是个获取用户信息的示例
-  const userStr = localStorage.getItem("user");
-  if (userStr) {
-    const user = ref(JSON.parse(userStr));
-    console.log("当前的用户昵称是" + user.value.name);
-  }
   getUserCategories();
 });
 </script>

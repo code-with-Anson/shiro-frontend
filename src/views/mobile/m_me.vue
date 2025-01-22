@@ -6,7 +6,7 @@
         type="file"
         ref="fileInput"
         accept="image/*"
-        @change="handleFileChange"
+        @change="handleAvatarChange"
       />
     </div>
     <!-- 头像选择器 -->
@@ -46,20 +46,20 @@
 </template>
 
 <script setup lang="ts">
-import { logout } from "@/api/user";
+import { getUserInfos, logout } from "@/api/user";
 import { useRouter } from "vue-router";
 import { showFailToast, showSuccessToast } from "vant";
 import "vant/lib/index.css";
 import { onMounted, ref } from "vue";
+import { handleImageChange } from "@/api/avatarHandle";
 
 // 数据结构定义部分：
 const user = ref({
-  avatar: "",
+  userId: 0,
   email: "",
   name: "",
   sex: "",
-  token: "",
-  userId: "",
+  avatar: "",
 });
 
 // 添加文件输入引用
@@ -70,48 +70,30 @@ const triggerFileInput = () => {
     fileInput.value.click();
   }
 };
-
-// 处理文件改变
-const handleFileChange = (event: Event) => {
-  try {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
-
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      showFailToast("请选择图片文件");
-      return;
-    }
-
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      showFailToast("图片大小不能超过5MB");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        user.value.avatar = e.target?.result as string;
-        localStorage.setItem("user", JSON.stringify(user.value));
-        showSuccessToast("头像更新成功");
-      } catch (error) {
-        showFailToast("头像更新失败");
-        console.error("更新头像失败:", error);
-      }
-    };
-
-    reader.onerror = () => {
-      showFailToast("图片读取失败");
-    };
-
-    reader.readAsDataURL(file);
-  } catch (error) {
-    showFailToast("处理图片时出错");
-    console.error("处理图片错误:", error);
-  }
+// 使用在api中定义好的 handleImageChange 函数
+const handleAvatarChange = async (event: Event) => {
+  await handleImageChange(event, {
+    maxSize: 5 * 1024 * 1024, // 5MB
+    allowedTypes: ["image/jpeg", "image/png", "image/gif"],
+    onSuccess: (imageUrl) => {
+      console.log("上传成功，新的头像地址:", imageUrl);
+      user.value.avatar = imageUrl;
+    },
+    onError: (error) => {
+      console.error("上传失败:", error);
+    },
+    onProgress: (progress) => {
+      console.log("上传进度:", progress);
+    },
+    cosConfig: {
+      SecretId: import.meta.env.VITE_COS_SECRET_ID,
+      SecretKey: import.meta.env.VITE_COS_SECRET_KEY,
+      Bucket: import.meta.env.VITE_COS_BUCKET,
+      Region: import.meta.env.VITE_COS_REGION,
+    },
+  });
 };
+
 // 路由跳转
 const router = useRouter();
 
@@ -122,13 +104,15 @@ const Logout = () => {
   router.push("/login");
 };
 
-onMounted(() => {
-  const userStr = localStorage.getItem("user");
-  if (userStr) {
-    user.value = JSON.parse(userStr);
-    console.log("当前的用户昵称是" + user.value.name);
-    console.log("当前的用户头像是" + user.value.avatar);
+onMounted(async () => {
+  try {
+    const userInfo = await getUserInfos();
+    user.value = userInfo;
+  } catch (error) {
+    console.error("获取用户信息失败:", error);
   }
+
+  console.log(user);
 });
 </script>
 

@@ -3,7 +3,7 @@ import axios from "axios";
 // 初始化axios实例，设定基础API_URL
 // 之后发送请求通过这个配置请求头等通用配置
 const axiosInstance = axios.create({
-  baseURL: "http://192.168.31.58:3952",
+  baseURL: import.meta.env.VITE_API_ENDPOINT,
   timeout: 1500,
   headers: {
     "Content-Type": "application/json",

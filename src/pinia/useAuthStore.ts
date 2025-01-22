@@ -22,7 +22,6 @@ export const useAuthStore = defineStore("auth", () => {
   const clearAuthState = () => {
     state.isAuthenticated = false;
     localStorage.removeItem("token");
-    localStorage.removeItem("user");
   };
 
   // 定义 getters
