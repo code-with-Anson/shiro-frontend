@@ -77,6 +77,7 @@
           v-model="editValue"
           label="昵称"
           placeholder="请输入昵称"
+          :rules="usernameRules"
         />
         <van-radio-group v-if="editType === 'sex'" v-model="editValue">
           <van-radio name="男">男</van-radio>
@@ -136,7 +137,7 @@ import { showFailToast, showSuccessToast, type FormInstance } from "vant";
 import { onMounted, ref, computed, nextTick } from "vue";
 import { handleImageChange } from "@/api/avatarHandle";
 import { updateUserInfos } from "@/api/user";
-import { passwordRules } from "@/utils/validators";
+import { passwordRules, usernameRules } from "@/utils/validators";
 
 // 数据结构定义部分：
 const user = ref({
