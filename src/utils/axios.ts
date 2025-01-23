@@ -33,6 +33,7 @@ axiosInstance.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 401:
+        case 50393:
           // token过期或无效，清除本地存储并重定向到登录页
           localStorage.removeItem("token");
           window.location.href = "/login";

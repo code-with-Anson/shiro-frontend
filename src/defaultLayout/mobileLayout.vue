@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <router-view class="content" />
-    <van-tabbar v-if="isAuthenticated" v-model="active">
+    <van-tabbar class="tabbar" v-if="isAuthenticated" v-model="active">
       <van-tabbar-item to="/" icon="gold-coin-o">账单</van-tabbar-item>
       <van-tabbar-item to="/renew_bill" icon="gem-o">循环</van-tabbar-item>
       <van-tabbar-item to="/me" icon="user-circle-o">我的</van-tabbar-item>
@@ -20,3 +20,9 @@ const { active } = useTabbar();
 const authStore = useAuthStore();
 const { isAuthenticated } = storeToRefs(authStore);
 </script>
+
+<style>
+.tabbar {
+  height: 3.125rem;
+}
+</style>

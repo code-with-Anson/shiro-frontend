@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="m_bills">
     <!-- 顶部导航 -->
     <van-nav-bar title="汐落" right-text="🔍" />
 
@@ -17,10 +17,10 @@
     <van-cell-group>
       <van-cell
         v-for="item in bills"
-        :key="item.date + item.category"
-        :title="item.category"
+        :key="item.id"
+        :title="item.categoryName"
         :label="item.date"
-        :value="`支出: ￥${item.amount}`"
+        :value="`${item.type} :￥${item.amount}`"
         is-link
       />
     </van-cell-group>
@@ -33,12 +33,25 @@ import { getAllCategories } from "@/api/category";
 import { ref } from "vue";
 import { onMounted } from "vue";
 import { showFailToast, showSuccessToast } from "vant";
+import { getMonthBills } from "@/api/bill";
 
+// 定义请求传参-年月
+const currentYear = ref(new Date().getFullYear());
+const currentMonth = ref(new Date().getMonth() + 1); // +1 因为 getMonth() 返回 0-11
+
+// 定义账单数据
 const bills = ref([
-  { category: "餐饮", amount: 100, date: "2021-01-01", icon: "smile-o" },
-  { category: "交通", amount: 200, date: "2021-01-02", icon: "smile-o" },
-  { category: "购物", amount: 300, date: "2021-01-03", icon: "smile-o" },
-  // 其他数据省略
+  // 下面是一条示例数据
+  // {
+  //   id: 1881413490334248961,
+  //   amount: 52.52,
+  //   type: "支出",
+  //   categoryId: 1881412697430437889,
+  //   categoryName: "汐落",
+  //   detail: "爱丽丝也很可爱",
+  //   date: "2025-01-12",
+  //   isDeleted: "正常",
+  // },
 ]);
 
 // 获取用户常规账单分类
@@ -60,12 +73,52 @@ const getUserCategories = async () => {
     });
   }
 };
-onMounted(() => {
-  getUserCategories();
+// 按年月获取用户常规账单
+const getUserMonthBills = async () => {
+  try {
+    //  1.发送请求按照年月获取账单
+    await getMonthBills(currentMonth.value, currentYear.value);
+
+    //  2.从localStorage读取处理后的分类数据
+    const storedBills = localStorage.getItem("bills");
+    const storedCategories = localStorage.getItem("categories");
+    if (storedBills && storedCategories) {
+      const billsData = JSON.parse(storedBills);
+      const categoriesData = JSON.parse(storedCategories);
+
+      bills.value = billsData.map((bill: any) => ({
+        ...bill,
+        categoryName:
+          categoriesData.find((cat: any) => cat.id === bill.categoryId)?.name ||
+          "未知分类",
+      }));
+      console.log("处理后的账单:", bills.value);
+    }
+  } catch (error: any) {
+    console.error("获取账单失败:", error);
+    showFailToast({
+      message: "获取账单失败" + "\n" + error.message,
+      position: "middle",
+    });
+  }
+};
+
+onMounted(async () => {
+  console.log(currentMonth.value, currentYear.value);
+  try {
+    await getUserCategories();
+    await getUserMonthBills();
+  } catch (error) {
+    console.error("初始化数据失败：", error);
+  }
 });
 </script>
 
 <style scoped>
+.m_bills {
+  margin-bottom: 5rem;
+}
+
 ::v-deep(.van-cell__value.highlight) {
   color: #39c5bb;
   font-weight: bold;
