@@ -6,10 +6,12 @@
     <!-- Sticky 固定顶部 -->
     <van-sticky>
       <van-cell
-        title="1月支出"
-        value="￥883.10"
-        label="本月收入 0.00"
-        value-class="highlight"
+        :title="`${currentMonth}月支出`"
+        :value="`￥${MonthCost.toFixed(2)}`"
+        :label="`本月收入 ￥${MonthEarn.toFixed(2)}`"
+        title-class="month-title"
+        value-class="month-cost"
+        label-class="month-earn"
       />
     </van-sticky>
 
@@ -22,6 +24,7 @@
         :label="item.date"
         :value="`${item.type} :￥${item.amount}`"
         is-link
+        :value-class="item.type === '支出' ? 'bill-cost' : 'bill-earn'"
       />
     </van-cell-group>
     <van-button id="add-button" icon="plus" color="#39C5BB" />
@@ -39,8 +42,24 @@ import { getMonthBills } from "@/api/bill";
 const currentYear = ref(new Date().getFullYear());
 const currentMonth = ref(new Date().getMonth() + 1); // +1 因为 getMonth() 返回 0-11
 
+// 定义月收入总金额
+const MonthEarn = ref(0);
+// 定义月支出总金额
+const MonthCost = ref(0);
+
+// 定义账单结构
+interface Bill {
+  id: number;
+  amount: number;
+  type: string;
+  categoryId: number;
+  categoryName?: string;
+  detail: string;
+  date: string;
+}
+
 // 定义账单数据
-const bills = ref([
+const bills = ref<Bill[]>([
   // 下面是一条示例数据
   // {
   //   id: 1881413490334248961,
@@ -50,7 +69,6 @@ const bills = ref([
   //   categoryName: "汐落",
   //   detail: "爱丽丝也很可爱",
   //   date: "2025-01-12",
-  //   isDeleted: "正常",
   // },
 ]);
 
@@ -86,12 +104,26 @@ const getUserMonthBills = async () => {
       const billsData = JSON.parse(storedBills);
       const categoriesData = JSON.parse(storedCategories);
 
-      bills.value = billsData.map((bill: any) => ({
-        ...bill,
-        categoryName:
-          categoriesData.find((cat: any) => cat.id === bill.categoryId)?.name ||
-          "未知分类",
-      }));
+      bills.value = billsData
+        .map((bill: any) => ({
+          ...bill,
+          categoryName:
+            categoriesData.find((cat: any) => cat.id === bill.categoryId)
+              ?.name || "未知分类",
+        }))
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+
+      //  计算月度支出和月度收入
+      MonthCost.value = bills.value
+        .filter((bill) => bill.type === "支出")
+        .reduce((sum, bill) => sum + bill.amount, 0);
+
+      MonthEarn.value = bills.value
+        .filter((bill) => bill.type === "收入")
+        .reduce((sum, bill) => sum + bill.amount, 0);
       console.log("处理后的账单:", bills.value);
     }
   } catch (error: any) {
@@ -119,10 +151,28 @@ onMounted(async () => {
   margin-bottom: 5rem;
 }
 
-::v-deep(.van-cell__value.highlight) {
+::v-deep(.van-cell__value.month-cost) {
   color: #39c5bb;
   font-weight: bold;
 }
+:deep(.van-cell__title.month-title) {
+  font-weight: bold;
+  color: #52a1e5;
+}
+
+:deep(.van-cell__label.month-earn) {
+  font-weight: bold;
+  color: #ff7875;
+}
+
+::v-deep(.van-cell__value.bill-cost) {
+  color: #39c5bb;
+}
+
+::v-deep(.van-cell__value.bill-earn) {
+  color: #ff7875;
+}
+
 .van-cell {
   padding-left: 1.5rem;
   padding-right: 1rem;
