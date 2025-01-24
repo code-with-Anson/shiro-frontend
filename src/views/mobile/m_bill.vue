@@ -6,26 +6,41 @@
     <!-- Sticky 固定顶部 -->
     <van-sticky>
       <van-cell
-        :title="`${currentMonth}月支出`"
+        :title="`${currentYear}年${currentMonth}月支出 :`"
         :value="`￥${MonthCost.toFixed(2)}`"
         :label="`本月收入 ￥${MonthEarn.toFixed(2)}`"
         title-class="month-title"
         value-class="month-cost"
         label-class="month-earn"
+        is-link
       />
     </van-sticky>
 
     <!-- 记录列表 -->
     <van-cell-group>
-      <van-cell
-        v-for="item in bills"
-        :key="item.id"
-        :title="item.categoryName"
-        :label="item.date"
-        :value="`${item.type} :￥${item.amount}`"
-        is-link
-        :value-class="item.type === '支出' ? 'bill-cost' : 'bill-earn'"
-      />
+      <template v-for="(item, index) in bills" :key="item.id">
+        <!-- 日期汇总信息 -->
+        <van-cell v-if="shouldShowDateHeader(index)" class="date-header">
+          <template #title>
+            <div class="date-summary">
+              <span class="date-text">{{ formatDate(item.date) }}</span>
+              <span class="daily-amount">
+                支出: ￥{{ getDayTotal(item.date, "支出") }}
+                <span class="amount-divider">|</span>
+                收入: ￥{{ getDayTotal(item.date, "收入") }}
+              </span>
+            </div>
+          </template>
+        </van-cell>
+        <!-- 账单项目 -->
+        <van-cell
+          :title="item.categoryName"
+          :value="`${item.type}: ￥${item.amount}`"
+          :label="item.detail"
+          is-link
+          :value-class="item.type === '支出' ? 'bill-cost' : 'bill-earn'"
+        />
+      </template>
     </van-cell-group>
     <van-button id="add-button" icon="plus" color="#39C5BB" />
   </div>
@@ -37,6 +52,7 @@ import { ref } from "vue";
 import { onMounted } from "vue";
 import { showFailToast, showSuccessToast } from "vant";
 import { getMonthBills } from "@/api/bill";
+import "vant/lib/index.css";
 
 // 定义请求传参-年月
 const currentYear = ref(new Date().getFullYear());
@@ -71,6 +87,27 @@ const bills = ref<Bill[]>([
   //   date: "2025-01-12",
   // },
 ]);
+
+// 格式化日期显示
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
+};
+// 判断是否需要显示日期头部
+const shouldShowDateHeader = (index: number) => {
+  if (index === 0) return true;
+  const currentDate = bills.value[index].date;
+  const prevDate = bills.value[index - 1].date;
+  return currentDate !== prevDate;
+};
+
+// 计算指定日期的收支总额
+const getDayTotal = (date: string, type: string) => {
+  return bills.value
+    .filter((bill) => bill.date === date && bill.type === type)
+    .reduce((sum, bill) => sum + bill.amount, 0)
+    .toFixed(2);
+};
 
 // 获取用户常规账单分类
 const getUserCategories = async () => {
@@ -171,6 +208,32 @@ onMounted(async () => {
 
 ::v-deep(.van-cell__value.bill-earn) {
   color: #ff7875;
+}
+
+/* 新增日期头部样式 */
+.date-header {
+  background-color: #f8f8f8;
+}
+
+.date-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.date-text {
+  font-weight: bold;
+  color: #52a1e5;
+}
+
+.daily-amount {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.amount-divider {
+  margin: 0 0.5rem;
+  color: #ddd;
 }
 
 .van-cell {

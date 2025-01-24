@@ -52,6 +52,7 @@ import { useRouter } from "vue-router";
 import { emailRules, passwordRules, usernameRules } from "@/utils/validators";
 import { register } from "@/api/user";
 import { showSuccessToast, showFailToast } from "vant";
+import "vant/lib/index.css";
 
 const username = ref("");
 const email = ref("");

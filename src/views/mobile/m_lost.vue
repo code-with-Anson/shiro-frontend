@@ -61,6 +61,7 @@ import { emailRules, verificationCodeRules } from "@/utils/validators";
 import { forgetPassword, verifyAndLogin } from "@/api/user";
 import { showSuccessToast, showFailToast } from "vant";
 import { useAuthStore } from "@/pinia/useAuthStore";
+import "vant/lib/index.css";
 
 const email = ref("");
 const code = ref("");
