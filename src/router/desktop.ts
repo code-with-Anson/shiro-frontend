@@ -18,27 +18,27 @@ const desktopRouter = createRouter({
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
-      component: () => import("../views/desktop/renew_bill.vue"),
+      component: () => import("@/views/desktop/renew_bill.vue"),
     },
     {
       path: "/me",
       name: "me",
-      component: () => import("../views/desktop/me.vue"),
+      component: () => import("@/views/desktop/me.vue"),
     },
     {
       path: "/login",
       name: "login",
-      component: () => import("../views/desktop/login.vue"),
+      component: () => import("@/views/desktop/login.vue"),
     },
     {
       path: "/register",
       name: "register",
-      component: () => import("../views/desktop/register.vue"),
+      component: () => import("@/views/desktop/register.vue"),
     },
     {
       path: "/lost",
       name: "lost",
-      component: () => import("../views/desktop/lost.vue"),
+      component: () => import("@/views/desktop/lost.vue"),
     },
   ],
 });

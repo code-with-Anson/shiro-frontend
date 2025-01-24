@@ -1,5 +1,7 @@
 import { createApp } from "vue";
 import App from "./App.vue";
+import "element-plus/dist/index.css";
+import "vant/lib/index.css";
 import { getRouterByDevice } from "./router/routerLoader";
 import { createPinia } from "pinia";
 

@@ -13,9 +13,19 @@
         value-class="month-cost"
         label-class="month-earn"
         is-link
+        @click="changeMonthEditStatus"
       />
     </van-sticky>
-
+    <van-date-picker
+      v-if="showMonthEdit"
+      v-model="currentDate"
+      title="选择年月"
+      :min-date="minDate"
+      :max-date="maxDate"
+      :columns-type="columnsType"
+      @confirm="getMonthBill"
+      @cancel="hideMonthEdit"
+    />
     <!-- 记录列表 -->
     <van-cell-group>
       <template v-for="(item, index) in bills" :key="item.id">
@@ -35,10 +45,12 @@
         <!-- 账单项目 -->
         <van-cell
           :title="item.categoryName"
-          :value="`${item.type}: ￥${item.amount}`"
+          :value="`${item.type}:
+        ￥${item.amount}`"
           :label="item.detail"
           is-link
           :value-class="item.type === '支出' ? 'bill-cost' : 'bill-earn'"
+          @click="() => navigateToBillDetail(item)"
         />
       </template>
     </van-cell-group>
@@ -50,13 +62,97 @@
 import { getAllCategories } from "@/api/category";
 import { ref } from "vue";
 import { onMounted } from "vue";
-import { showFailToast, showSuccessToast } from "vant";
+import { type DatePickerColumnType } from "vant";
 import { getMonthBills } from "@/api/bill";
-import "vant/lib/index.css";
+import { useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
+
+// 定义修改年份和月份数据对象
+const showMonthEdit = ref(false);
+const currentDate = ref([
+  String(new Date().getFullYear()),
+  String(new Date().getMonth() + 1),
+]);
+
+// 定义日期范围
+const minDate = new Date(2000, 0);
+const maxDate = new Date(new Date().getFullYear() + 10, 0); // 当前日期
+
+const changeMonthEditStatus = () => {
+  showMonthEdit.value = !showMonthEdit.value;
+};
+const hideMonthEdit = () => {
+  showMonthEdit.value = false;
+};
+
+// 获取指定年月账单
+const getMonthBill = async () => {
+  try {
+    // 将日期选择器的值转换为合适的格式
+    const month = parseInt(currentDate.value[1]);
+    const year = parseInt(currentDate.value[0]);
+
+    // 更新当前月份时保持两位数格式
+    currentMonth.value = String(month).padStart(2, "0");
+    currentYear.value = year;
+
+    //  1.发送请求按照年月获取账单
+    await getMonthBills(month, year);
+
+    //  2.从localStorage读取处理后的分类数据
+    const storedBills = localStorage.getItem("bills");
+    const storedCategories = localStorage.getItem("categories");
+    if (storedBills && storedCategories) {
+      const billsData = JSON.parse(storedBills);
+      const categoriesData = JSON.parse(storedCategories);
+      currentMonth.value = currentDate.value[1];
+      currentYear.value = parseInt(currentDate.value[0]);
+      bills.value = billsData
+        .map((bill: any) => ({
+          ...bill,
+          categoryName:
+            categoriesData.find((cat: any) => cat.id === bill.categoryId)
+              ?.name || "未知分类",
+        }))
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+
+      //  计算月度支出和月度收入
+      MonthCost.value = bills.value
+        .filter((bill) => bill.type === "支出")
+        .reduce((sum, bill) => sum + bill.amount, 0);
+
+      MonthEarn.value = bills.value
+        .filter((bill) => bill.type === "收入")
+        .reduce((sum, bill) => sum + bill.amount, 0);
+      console.log("处理后的账单:", bills.value);
+      ElMessage({
+        message: "获取成功！",
+        type: "success",
+        plain: true,
+      });
+    }
+  } catch (error: any) {
+    console.error("获取账单失败:", error);
+    ElMessage({
+      message: "获取账单失败" + "\n" + error.message,
+      type: "error",
+      plain: true,
+    });
+  }
+};
 
 // 定义请求传参-年月
+// 之所以需要定义这两个值，而不是直接获取上面定义的currentDate数组里面的值
+// 是因为那个值于日期选择器绑定，我需要确定日期并获取对应数据后再改变顶部栏的日期现实
 const currentYear = ref(new Date().getFullYear());
-const currentMonth = ref(new Date().getMonth() + 1); // +1 因为 getMonth() 返回 0-11
+// +1 因为 getMonth() 返回 0-11
+// 使用 padStart 确保月份始终是两位数
+const currentMonth = ref(String(new Date().getMonth() + 1).padStart(2, "0"));
+// 指定选择器显示的列类型
+const columnsType: DatePickerColumnType[] = ["year", "month"];
 
 // 定义月收入总金额
 const MonthEarn = ref(0);
@@ -93,6 +189,7 @@ const formatDate = (dateStr: string) => {
   const date = new Date(dateStr);
   return `${date.getMonth() + 1}月${date.getDate()}日`;
 };
+
 // 判断是否需要显示日期头部
 const shouldShowDateHeader = (index: number) => {
   if (index === 0) return true;
@@ -122,9 +219,10 @@ const getUserCategories = async () => {
     }
   } catch (error: any) {
     console.error("获取分类失败:", error);
-    showFailToast({
+    ElMessage({
       message: "获取分类失败" + "\n" + error.message,
-      position: "middle",
+      type: "error",
+      plain: true,
     });
   }
 };
@@ -132,7 +230,7 @@ const getUserCategories = async () => {
 const getUserMonthBills = async () => {
   try {
     //  1.发送请求按照年月获取账单
-    await getMonthBills(currentMonth.value, currentYear.value);
+    await getMonthBills(parseInt(currentMonth.value), currentYear.value);
 
     //  2.从localStorage读取处理后的分类数据
     const storedBills = localStorage.getItem("bills");
@@ -165,11 +263,22 @@ const getUserMonthBills = async () => {
     }
   } catch (error: any) {
     console.error("获取账单失败:", error);
-    showFailToast({
+
+    ElMessage({
       message: "获取账单失败" + "\n" + error.message,
-      position: "middle",
+      type: "error",
+      plain: true,
     });
   }
+};
+
+// 跳转账单详情页
+const router = useRouter();
+const navigateToBillDetail = (bill: Bill) => {
+  // 将当前选中的账单信息存储到 localStorage
+  localStorage.setItem("currentBill", JSON.stringify(bill));
+  // 直接跳转到详情页
+  router.push("/bill-detail");
 };
 
 onMounted(async () => {

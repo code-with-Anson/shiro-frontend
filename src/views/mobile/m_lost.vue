@@ -59,9 +59,8 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { emailRules, verificationCodeRules } from "@/utils/validators";
 import { forgetPassword, verifyAndLogin } from "@/api/user";
-import { showSuccessToast, showFailToast } from "vant";
 import { useAuthStore } from "@/pinia/useAuthStore";
-import "vant/lib/index.css";
+import { ElMessage } from "element-plus";
 
 const email = ref("");
 const code = ref("");
@@ -73,13 +72,18 @@ const sendEmail = async (values: { email: string }) => {
     console.log("提交的邮箱: " + values.email);
     const result = await forgetPassword(values.email);
     isEmailSent.value = true;
-    showSuccessToast(result.data);
+    ElMessage({
+      message: result.data,
+      type: "success",
+      plain: true,
+    });
   } catch (error: any) {
     // 错误处理
     console.error("发送失败:", error);
-    showFailToast({
+    ElMessage({
       message: "发送失败" + "\n" + error.message,
-      position: "middle",
+      type: "error",
+      plain: true,
     });
   }
 };
@@ -90,9 +94,10 @@ const verify = async () => {
     const loginData = await verifyAndLogin(code.value, email.value);
 
     // 登录成功提示
-    showSuccessToast({
+    ElMessage({
       message: "登录成功",
-      position: "middle",
+      type: "success",
+      plain: true,
     });
 
     // 2. 设置认证状态
@@ -103,9 +108,10 @@ const verify = async () => {
   } catch (error: any) {
     // 错误处理
     console.error("登录失败:", error);
-    showFailToast({
+    ElMessage({
       message: "登录失败" + "\n" + error.message,
-      position: "middle",
+      type: "error",
+      plain: true,
     });
   }
 };

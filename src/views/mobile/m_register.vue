@@ -51,8 +51,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { emailRules, passwordRules, usernameRules } from "@/utils/validators";
 import { register } from "@/api/user";
-import { showSuccessToast, showFailToast } from "vant";
-import "vant/lib/index.css";
+import { ElMessage } from "element-plus";
 
 const username = ref("");
 const email = ref("");
@@ -71,15 +70,22 @@ const registerUser = async (values: {
     );
     console.log(result);
     // 2.进行友好提示
-    showSuccessToast("注册成功");
+
+    ElMessage({
+      message: "注册成功",
+      type: "success",
+      plain: true,
+    });
     // 3.路由跳转
     router.push("/login");
   } catch (error: any) {
     // 错误处理
+
     console.error("注册失败:", error);
-    showFailToast({
+    ElMessage({
       message: "注册失败" + "\n" + error.message,
-      position: "middle",
+      type: "error",
+      plain: true,
     });
   }
 };

@@ -48,8 +48,7 @@ import { useAuthStore } from "@/pinia/useAuthStore";
 import { emailRules, passwordRules } from "@/utils/validators";
 import { useRouter } from "vue-router";
 import { login } from "@/api/user";
-import { showFailToast, showSuccessToast } from "vant";
-import "vant/lib/index.css";
+import { ElMessage } from "element-plus";
 
 // 数据定义
 const email = ref("");
@@ -70,11 +69,11 @@ const Login = async (values: { email: string; password: string }) => {
     // 1. 先进行登录
     const loginData = await login(values.email, values.password);
     // 登录成功提示
-    showSuccessToast({
-      message: "登录成功",
-      position: "middle",
+    ElMessage({
+      message: "登录成功" + "\n",
+      type: "success",
+      plain: true,
     });
-
     // 2. 设置认证状态
     const authStore = useAuthStore();
     authStore.checkAuth();
@@ -83,9 +82,10 @@ const Login = async (values: { email: string; password: string }) => {
   } catch (error: any) {
     // 错误处理
     console.error("登录失败:", error);
-    showFailToast({
+    ElMessage({
       message: "登录失败" + "\n" + error.message,
-      position: "middle",
+      type: "error",
+      plain: true,
     });
   }
 };

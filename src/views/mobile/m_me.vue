@@ -130,10 +130,10 @@
 </template>
 
 <script setup lang="ts">
-import "vant/lib/index.css";
 import { getUserInfos, logout } from "@/api/user";
 import { useRouter } from "vue-router";
-import { showFailToast, showSuccessToast, type FormInstance } from "vant";
+import { ElMessage } from "element-plus";
+import { type FormInstance } from "vant";
 import { onMounted, ref, computed, nextTick } from "vue";
 import { handleImageChange } from "@/api/avatarHandle";
 import { updateUserInfos } from "@/api/user";
@@ -279,16 +279,28 @@ const handleSubmit = async () => {
     const result = await updateUserInfos(updateData);
     (user.value as any)[editType.value] = editValue.value;
     showEdit.value = false;
-    showSuccessToast("更新成功");
+    ElMessage({
+      message: "更新成功",
+      type: "success",
+      plain: true,
+    });
   } catch (error: any) {
-    showFailToast("更新失败" + "\n" + error.message);
+    ElMessage({
+      message: "出现错误",
+      type: "error",
+      plain: true,
+    });
   }
 };
 
 // 退出登录
 const Logout = () => {
   logout();
-  showSuccessToast("退出登录成功");
+  ElMessage({
+    message: "退出成功",
+    type: "success",
+    plain: true,
+  });
   router.push("/login");
 };
 
@@ -305,10 +317,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.van-button {
-  width: 15rem; /* 或者其他适合的宽度 */
-}
-
 .m_me {
   display: flex;
   flex-direction: column;
@@ -317,42 +325,52 @@ onMounted(async () => {
   height: 90vh; /* 使容器占据较大的视口高度 */
 }
 
+/* Vant 按钮样式 */
+:deep(.van-button) {
+  width: 15rem;
+}
+
 .userDetails {
   margin-top: 2rem;
   width: 23rem;
 }
 
-.email-cell :deep(.van-cell__value) {
+/* 邮箱单元格样式 */
+:deep(.van-cell__value) {
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.edit-popup {
+/* 弹出层样式 */
+:deep(.edit-popup) {
   width: 80%;
   padding: 20px;
   border-radius: 8px;
 }
 
+/* 弹出层标题 */
 .popup-title {
   text-align: center;
   font-size: 1.2rem;
   margin-bottom: 1rem;
 }
 
+/* 按钮组样式 */
 .button-group {
   display: flex;
   justify-content: space-between;
   margin-top: 1.5rem;
   gap: 1rem;
 }
-
-.button-group .van-button {
+/* 按钮组中的 Vant 按钮 */
+:deep(.button-group .van-button) {
   flex: 1;
 }
 
-.van-radio-group {
+/* 单选按钮组样式 */
+:deep(.van-radio-group) {
   padding: 1rem 0;
   display: flex;
   justify-content: space-around;

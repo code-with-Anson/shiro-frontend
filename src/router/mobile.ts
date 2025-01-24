@@ -18,27 +18,32 @@ const mobileRouter = createRouter({
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
-      component: () => import("../views/mobile/m_renew_bill.vue"),
+      component: () => import("@/views/mobile/m_renew_bill.vue"),
     },
     {
       path: "/me",
       name: "m_me",
-      component: () => import("../views/mobile/m_me.vue"),
+      component: () => import("@/views/mobile/m_me.vue"),
     },
     {
       path: "/login",
       name: "m_login",
-      component: () => import("../views/mobile/m_login.vue"),
+      component: () => import("@/views/mobile/m_login.vue"),
     },
     {
       path: "/register",
       name: "m_register",
-      component: () => import("../views/mobile/m_register.vue"),
+      component: () => import("@/views/mobile/m_register.vue"),
     },
     {
       path: "/lost",
       name: "m_lost",
-      component: () => import("../views/mobile/m_lost.vue"),
+      component: () => import("@/views/mobile/m_lost.vue"),
+    },
+    {
+      path: "/bill-detail",
+      name: "m_bill_detail",
+      component: () => import("@/views/mobile/m_bill_detail.vue"),
     },
   ],
 });
