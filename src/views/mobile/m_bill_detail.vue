@@ -174,12 +174,20 @@ const onClickLeft = () => {
 // 类型选择处理
 const onTypeConfirm = (value: any) => {
   const selectedType = value.selectedValues[0];
-  // 如果选择了不同的类型，需要清空分类
-  if (billForm.value.type !== selectedType) {
-    billForm.value.categoryName = "";
-    billForm.value.categoryId = 0;
-  }
   billForm.value.type = selectedType;
+  // 找到当前类型的第一个分类
+  const firstCategory = allCategories.value.find(
+    (cat) => cat.categoryType === selectedType
+  );
+  // 如果找到了分类，就自动设置它
+  if (firstCategory) {
+    billForm.value.categoryId = firstCategory.id;
+    billForm.value.categoryName = firstCategory.name;
+  } else {
+    // 如果没找到分类，清空分类选择
+    billForm.value.categoryId = 0;
+    billForm.value.categoryName = "";
+  }
   showTypePopup.value = false;
 };
 
