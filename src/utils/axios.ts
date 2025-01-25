@@ -25,8 +25,42 @@ axiosInstance.interceptors.request.use(
 );
 
 // 响应拦截器：处理常见错误
+// 这里着重说一下，后端雪花算法生成的id在前端必须转换字符串或者使用Bigint
+// 不然会出现精度丢失的问题
+// 也就是说，无法准确更新对应的账单了
 axiosInstance.interceptors.response.use(
   (response) => {
+    const handleData = (data: any): any => {
+      if (!data) return data;
+
+      if (Array.isArray(data)) {
+        return data.map(handleData);
+      }
+
+      if (typeof data === "object") {
+        const newData: Record<string, any> = { ...data };
+        for (const key in newData) {
+          // 针对大数字 ID 进行特殊处理
+          if (
+            (key === "id" || key === "categoryId") &&
+            typeof newData[key] === "number"
+          ) {
+            newData[key] = String(BigInt(newData[key]));
+          }
+          // 其他非 amount 字段转字符串
+          else if (key !== "amount" && typeof newData[key] !== "object") {
+            newData[key] = String(newData[key]);
+          } else if (typeof newData[key] === "object") {
+            newData[key] = handleData(newData[key]);
+          }
+        }
+        return newData;
+      }
+
+      return data;
+    };
+
+    response.data = handleData(response.data);
     return response;
   },
   (error) => {
