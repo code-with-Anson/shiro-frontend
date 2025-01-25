@@ -9,19 +9,19 @@ interface ApiResponse<T> {
 
 //获取常规账单返回的数据模板
 interface BillsResponse {
-  id: string;
+  id: number;
   amount: number;
   type: string;
-  categoryId: string;
+  categoryId: number;
   detail: string;
   date: Date;
 }
 
 // 账单请求体
 interface BillUpdateRequest {
-  id: string;
+  id: number;
   amount?: number;
-  categoryId?: string;
+  categoryId?: number;
   date?: string;
   detail?: string;
   type?: string;
@@ -64,32 +64,6 @@ export async function updateBill(updateData: BillUpdateRequest): Promise<void> {
       "/bills/update",
       updateData
     );
-
-    // 检查响应状态
-    if (response.data.code === 50039) {
-      // 更新成功后，更新本地存储的账单数据
-      const storedBills = localStorage.getItem("bills");
-      if (storedBills) {
-        const bills = JSON.parse(storedBills);
-        // 找到并更新对应的账单
-        const index = bills.findIndex(
-          (bill: BillsResponse) => bill.id.toString() === updateData.id
-        );
-        if (index !== -1) {
-          bills[index] = {
-            ...bills[index],
-            ...updateData,
-            // 确保ID和categoryId保持字符串类型
-            id: updateData.id.toString(),
-            categoryId: updateData.categoryId?.toString(),
-          };
-          localStorage.setItem("bills", JSON.stringify(bills));
-        }
-      }
-    } else {
-      // 如果状态码不是预期的，抛出错误
-      throw new Error(response.data.msg || "更新失败");
-    }
   } catch (error: any) {
     // 错误处理逻辑
     if (error.response?.data) {

@@ -119,10 +119,10 @@ const router = useRouter();
 
 // 表单数据
 const billForm = ref({
-  id: "",
+  id: 0,
   amount: "",
   type: "",
-  categoryId: "",
+  categoryId: 0,
   categoryName: "",
   detail: "",
   date: "",
@@ -186,8 +186,6 @@ const initCategories = () => {
   const storedCategories = localStorage.getItem("categories");
   if (storedCategories) {
     const categories = JSON.parse(storedCategories);
-    // 在设置数据之前先打印看看数据结构
-    console.log("Loaded categories:", categories);
 
     // 转换为符合 PickerOption 类型的数组
     categoryColumns.value = categories.map((cat: any) => ({
@@ -199,12 +197,8 @@ const initCategories = () => {
     categories.forEach((cat: any) => {
       categoriesMap.value[cat.name] = cat;
     });
-
-    // 打印处理后的数据，用于调试
-    console.log("Processed categoryColumns:", categoryColumns.value);
-    console.log("Processed categoriesMap:", categoriesMap.value);
   } else {
-    console.warn("No categories found in localStorage");
+    console.warn("本地存储没看着有分类数据啊");
   }
 };
 // 初始化账单数据
@@ -245,9 +239,9 @@ const updateThisBill = async () => {
   try {
     // 构造更新数据，只包含修改的字段
     const updateData = {
-      id: billForm.value.id.toString(),
+      id: billForm.value.id,
       amount: Number(billForm.value.amount),
-      categoryId: billForm.value.categoryId.toString(),
+      categoryId: billForm.value.categoryId,
       date: billForm.value.date,
       detail: billForm.value.detail,
       type: billForm.value.type,

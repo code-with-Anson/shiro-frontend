@@ -161,10 +161,10 @@ const MonthCost = ref(0);
 
 // 定义账单结构
 interface Bill {
-  id: string;
+  id: number;
   amount: number;
   type: string;
-  categoryId: string;
+  categoryId: number;
   categoryName?: string;
   detail: string;
   date: string;

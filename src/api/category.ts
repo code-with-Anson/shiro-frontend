@@ -9,7 +9,7 @@ interface ApiResponse<T> {
 
 interface CategoryResponse {
   records: Array<{
-    id: string;
+    id: number;
     name: string;
   }>;
   total: number;

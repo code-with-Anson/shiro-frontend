@@ -3,7 +3,7 @@ import axiosInstance from "@/utils/axios";
 
 //用户登录返回的数据模板
 interface LoginResponse {
-  id: string;
+  id: number;
   token: string;
   email: string;
   name: string;
@@ -11,7 +11,7 @@ interface LoginResponse {
   avatar: string;
 }
 interface UserInfo {
-  userId: string;
+  userId: number;
   email: string;
   name: string;
   sex: string;
@@ -19,7 +19,7 @@ interface UserInfo {
 }
 
 interface UpdateUserInfo {
-  userId?: string;
+  userId?: number;
   email?: string;
   name?: string;
   password?: string;
@@ -150,7 +150,7 @@ export async function verifyAndLogin(
         email,
       }
     );
-    // 处理响应数据，确保ID是字符串类型
+
     const loginData = response.data;
     localStorage.setItem("token", loginData.token);
     return loginData;
