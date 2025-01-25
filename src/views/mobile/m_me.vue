@@ -141,7 +141,7 @@ import { passwordRules, usernameRules } from "@/utils/validators";
 
 // 数据结构定义部分：
 const user = ref({
-  userId: "",
+  userId: 0,
   email: "",
   name: "",
   sex: "",

@@ -73,6 +73,9 @@ export function logout() {
     "清理后的token,user,pinia状态",
     (localStorage.getItem("token") ?? "") + authStore.isUserLoggedIn
   );
+  localStorage.removeItem("currentDate");
+  localStorage.removeItem("categories");
+  localStorage.removeItem("bills");
 }
 
 // 注册用户

@@ -75,11 +75,13 @@ import { ElMessage, roleTypes } from "element-plus";
 
 // 定义修改年份和月份数据对象
 const showMonthEdit = ref(false);
-const currentDate = ref([
-  String(new Date().getFullYear()),
-  String(new Date().getMonth() + 1),
-]);
-
+// 从 localStorage 获取当前日期,如果没有则使用当前日期
+const storedDate = localStorage.getItem("currentDate");
+const currentDate = ref(
+  storedDate
+    ? JSON.parse(storedDate)
+    : [String(new Date().getFullYear()), String(new Date().getMonth() + 1)]
+);
 // 定义日期范围
 const minDate = new Date(1900, 0);
 const maxDate = new Date(new Date().getFullYear() + 100, 0);
@@ -105,6 +107,9 @@ const getMonthBill = async () => {
 
     //  1.发送请求按照年月获取账单
     await getMonthBills(month, year);
+    // 保存传入的年月到currentDate
+    currentDate.value = [currentYear.value, currentMonth.value];
+    localStorage.setItem("currentDate", JSON.stringify(currentDate.value));
 
     //  2.从localStorage读取处理后的分类数据
     const storedBills = localStorage.getItem("bills");
@@ -152,12 +157,20 @@ const getMonthBill = async () => {
 };
 
 // 定义请求传参-年月
+
+const defaultYear = storedDate
+  ? JSON.parse(storedDate)[0]
+  : String(new Date().getFullYear());
+const defaultMonth = storedDate
+  ? JSON.parse(storedDate)[1]
+  : String(new Date().getMonth() + 1).padStart(2, "0");
+
 // 之所以需要定义这两个值，而不是直接获取上面定义的currentDate数组里面的值
-// 是因为那个值于日期选择器绑定，我需要确定日期并获取对应数据后再改变顶部栏的日期现实
-const currentYear = ref(new Date().getFullYear());
+// 是因为那个值与日期选择器绑定，我需要确定日期并获取对应数据后再改变顶部栏的日期现实
+const currentYear = ref(defaultYear);
 // +1 因为 getMonth() 返回 0-11
 // 使用 padStart 确保月份始终是两位数
-const currentMonth = ref(String(new Date().getMonth() + 1).padStart(2, "0"));
+const currentMonth = ref(defaultMonth);
 // 指定选择器显示的列类型
 const columnsType: DatePickerColumnType[] = ["year", "month"];
 
@@ -233,51 +246,6 @@ const getUserCategories = async () => {
     });
   }
 };
-// 按年月获取用户常规账单
-const getUserMonthBills = async () => {
-  try {
-    //  1.发送请求按照年月获取账单
-    await getMonthBills(parseInt(currentMonth.value), currentYear.value);
-
-    //  2.从localStorage读取处理后的分类数据
-    const storedBills = localStorage.getItem("bills");
-    const storedCategories = localStorage.getItem("categories");
-    if (storedBills && storedCategories) {
-      const billsData = JSON.parse(storedBills);
-      const categoriesData = JSON.parse(storedCategories);
-
-      bills.value = billsData
-        .map((bill: any) => ({
-          ...bill,
-          categoryName:
-            categoriesData.find((cat: any) => cat.id === bill.categoryId)
-              ?.name || "未知分类",
-        }))
-        .sort(
-          (a: any, b: any) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-
-      //  计算月度支出和月度收入
-      MonthCost.value = bills.value
-        .filter((bill) => bill.type === "支出")
-        .reduce((sum, bill) => sum + bill.amount, 0);
-
-      MonthEarn.value = bills.value
-        .filter((bill) => bill.type === "收入")
-        .reduce((sum, bill) => sum + bill.amount, 0);
-      console.log("处理后的账单:", bills.value);
-    }
-  } catch (error: any) {
-    console.error("获取账单失败:", error);
-
-    ElMessage({
-      message: "获取账单失败" + "\n" + error.message,
-      type: "error",
-      plain: true,
-    });
-  }
-};
 
 // 跳转账单详情页
 const router = useRouter();
@@ -294,7 +262,7 @@ onMounted(async () => {
   console.log(currentMonth.value, currentYear.value);
   try {
     await getUserCategories();
-    await getUserMonthBills();
+    await getMonthBill();
   } catch (error) {
     console.error("初始化数据失败：", error);
   }
