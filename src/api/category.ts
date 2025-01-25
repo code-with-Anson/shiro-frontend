@@ -11,6 +11,7 @@ interface CategoryResponse {
   records: Array<{
     id: number;
     name: string;
+    categoryType: string;
   }>;
   total: number;
   size: number;

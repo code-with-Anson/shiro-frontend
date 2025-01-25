@@ -27,6 +27,7 @@
         name="type"
         label="类型"
         placeholder="请选择类型"
+        :rules="[{ required: true, message: '请选择类型' }]"
         @click="showTypePopup = true"
       />
       <van-popup v-model:show="showTypePopup" position="bottom">
@@ -45,7 +46,8 @@
         name="category"
         label="分类"
         placeholder="请选择分类"
-        @click="showCategoryPopup = true"
+        :rules="[{ required: true, message: '请选择分类' }]"
+        @click="handleCategoryClick"
       />
       <van-popup v-model:show="showCategoryPopup" position="bottom">
         <van-picker
@@ -63,6 +65,7 @@
         name="date"
         label="日期"
         placeholder="请选择日期"
+        :rules="[{ required: true, message: '请选择日期' }]"
         @click="showDatePicker = true"
       />
       <van-popup v-model:show="showDatePicker" position="bottom">
@@ -113,7 +116,7 @@
 <script setup lang="ts">
 import { updateBill } from "@/api/bill";
 import { ElMessage } from "element-plus";
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 const router = useRouter();
 
@@ -138,9 +141,26 @@ const typeColumns = ref([
   { text: "支出", value: "支出" },
   { text: "收入", value: "收入" },
 ]);
-// 分类选项
-const categoryColumns = ref<{ text: string; value: string }[]>([]);
-const categoriesMap = ref<Record<string, any>>({});
+
+// 分类数据管理
+const allCategories = ref<any[]>([]); // 存储所有分类数据
+const categoriesMap = ref<Record<string, any>>({}); // 用于快速查找分类信息
+
+// 根据当前选择的类型计算显示的分类列表
+const categoryColumns = computed(() => {
+  if (!billForm.value.type) return [];
+
+  // 根据当前选择的类型筛选分类
+  const filteredCategories = allCategories.value.filter(
+    (cat) => cat.categoryType === billForm.value.type
+  );
+
+  // 转换为 Picker 需要的格式
+  return filteredCategories.map((cat) => ({
+    text: cat.name,
+    value: cat.name,
+  }));
+});
 
 // 日期选择器配置
 const currentDate = ref([""]);
@@ -155,23 +175,14 @@ const onClickLeft = () => {
 
 // 类型选择处理
 const onTypeConfirm = (value: any) => {
-  // Picker返回的是一个对象，我们需要从selectedValues中取第一个值
-  billForm.value.type = value.selectedValues[0];
-  showTypePopup.value = false;
-};
-
-// 分类选择处理
-const onCategoryConfirm = (value: any) => {
-  // 同样从selectedValues中取值
-  const categoryName = value.selectedValues[0];
-  billForm.value.categoryName = categoryName;
-
-  // 从categoriesMap中获取分类信息
-  const category = categoriesMap.value[categoryName];
-  if (category) {
-    billForm.value.categoryId = category.id;
+  const selectedType = value.selectedValues[0];
+  // 如果选择了不同的类型，需要清空分类
+  if (billForm.value.type !== selectedType) {
+    billForm.value.categoryName = "";
+    billForm.value.categoryId = 0;
   }
-  showCategoryPopup.value = false;
+  billForm.value.type = selectedType;
+  showTypePopup.value = false;
 };
 
 // 日期选择处理
@@ -185,22 +196,51 @@ const onDateConfirm = (value: { selectedValues: string[] }) => {
 const initCategories = () => {
   const storedCategories = localStorage.getItem("categories");
   if (storedCategories) {
-    const categories = JSON.parse(storedCategories);
+    try {
+      const categories = JSON.parse(storedCategories);
+      allCategories.value = categories;
 
-    // 转换为符合 PickerOption 类型的数组
-    categoryColumns.value = categories.map((cat: any) => ({
-      text: cat.name,
-      value: cat.name,
-    }));
-
-    // 构建查找映射
-    categories.forEach((cat: any) => {
-      categoriesMap.value[cat.name] = cat;
-    });
+      // 构建分类查找映射
+      categories.forEach((cat: any) => {
+        categoriesMap.value[cat.name] = cat;
+      });
+    } catch (error) {
+      console.error("解析分类数据失败:", error);
+      ElMessage({
+        message: "分类数据格式错误",
+        type: "error",
+      });
+    }
   } else {
-    console.warn("本地存储没看着有分类数据啊");
+    console.warn("未找到分类数据");
   }
 };
+
+// 处理分类点击事件
+const handleCategoryClick = () => {
+  if (!billForm.value.type) {
+    ElMessage({
+      message: "请先选择类型（支出/收入）",
+      type: "warning",
+    });
+    return;
+  }
+  showCategoryPopup.value = true;
+};
+
+// 分类选择处理
+const onCategoryConfirm = (value: any) => {
+  const categoryName = value.selectedValues[0];
+  billForm.value.categoryName = categoryName;
+
+  // 从categoriesMap中获取分类信息
+  const category = categoriesMap.value[categoryName];
+  if (category) {
+    billForm.value.categoryId = category.id;
+  }
+  showCategoryPopup.value = false;
+};
+
 // 初始化账单数据
 const initBillData = () => {
   const currentBillStr = localStorage.getItem("currentBill");
@@ -218,6 +258,7 @@ const initBillData = () => {
   try {
     const currentBill = JSON.parse(currentBillStr);
     billForm.value = { ...currentBill };
+    billForm.value.type = currentBill.type;
     // 如果有日期，更新日期选择器的值
     if (currentBill.date) {
       // 将日期字符串转换为数组格式
