@@ -17,7 +17,7 @@ interface BillsResponse {
   date: Date;
 }
 
-// 账单请求体
+// 更新常规账单请求体
 interface BillUpdateRequest {
   id: number;
   amount?: number;
@@ -25,6 +25,15 @@ interface BillUpdateRequest {
   date?: string;
   detail?: string;
   type?: string;
+}
+
+// 新增常规账单请求体
+interface BillAddRequest {
+  amount: number;
+  categoryId: number;
+  date: string;
+  detail: string;
+  billType: string;
 }
 
 // 按照月份获取用户常规账单
@@ -75,6 +84,56 @@ export async function updateBill(updateData: BillUpdateRequest): Promise<void> {
     } else {
       // 其他错误
       throw new Error(error.message || "更新失败，请稍后重试");
+    }
+  }
+}
+
+// 添加账单
+export async function addBill(addBillData: BillAddRequest): Promise<void> {
+  try {
+    // 发送更新账单请求
+    const response = await axiosInstance.post<ApiResponse<null>>(
+      "/bills/add",
+      addBillData
+    );
+  } catch (error: any) {
+    // 错误处理逻辑
+    if (error.response?.data) {
+      // 从后端返回的错误信息中获取
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      // 请求已发出但未收到响应
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      // 其他错误
+      throw new Error(error.message || "更新失败，请稍后重试");
+    }
+  }
+}
+
+// 定义请求体接口
+interface DeleteBillRequest {
+  bill_ids: number[];
+}
+
+// 使用接口约束请求体
+export async function deleteBill(billIds: number[]): Promise<void> {
+  try {
+    const requestData: DeleteBillRequest = {
+      bill_ids: billIds,
+    };
+
+    const response = await axiosInstance.post<ApiResponse<null>>(
+      "/bills/real-delete",
+      requestData
+    );
+  } catch (error: any) {
+    if (error.response?.data) {
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      throw new Error(error.message || "删除失败，请稍后重试");
     }
   }
 }

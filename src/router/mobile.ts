@@ -45,6 +45,11 @@ const mobileRouter = createRouter({
       name: "m_bill_detail",
       component: () => import("@/views/mobile/m_bill_detail.vue"),
     },
+    {
+      path: "/bill-add",
+      name: "m_bill_add",
+      component: () => import("@/views/mobile/m_bill_add.vue"),
+    },
   ],
 });
 

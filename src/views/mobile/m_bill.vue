@@ -1,7 +1,7 @@
 <template>
   <div class="m_bills">
     <!-- 顶部导航 -->
-    <van-nav-bar title="汐落" right-text="🔍" />
+    <van-nav-bar title="汐落" />
 
     <!-- Sticky 固定顶部 -->
     <van-sticky>
@@ -54,7 +54,12 @@
         />
       </template>
     </van-cell-group>
-    <van-button id="add-button" icon="plus" color="#39C5BB" />
+    <van-button
+      id="add-button"
+      icon="plus"
+      color="#39C5BB"
+      @click="toAddNewBill"
+    />
   </div>
 </template>
 
@@ -65,7 +70,7 @@ import { onMounted } from "vue";
 import { type DatePickerColumnType } from "vant";
 import { getMonthBills } from "@/api/bill";
 import { useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
+import { ElMessage, roleTypes } from "element-plus";
 
 // 定义修改年份和月份数据对象
 const showMonthEdit = ref(false);
@@ -76,7 +81,7 @@ const currentDate = ref([
 
 // 定义日期范围
 const minDate = new Date(1900, 0);
-const maxDate = new Date(new Date().getFullYear() + 100, 0); // 当前日期
+const maxDate = new Date(new Date().getFullYear() + 100, 0);
 
 const changeMonthEditStatus = () => {
   showMonthEdit.value = !showMonthEdit.value;
@@ -280,7 +285,9 @@ const navigateToBillDetail = (bill: Bill) => {
   // 直接跳转到详情页
   router.push("/bill-detail");
 };
-
+const toAddNewBill = () => {
+  router.push("/bill-add");
+};
 onMounted(async () => {
   console.log(currentMonth.value, currentYear.value);
   try {
