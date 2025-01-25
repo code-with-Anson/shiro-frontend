@@ -75,8 +75,8 @@ const currentDate = ref([
 ]);
 
 // 定义日期范围
-const minDate = new Date(2000, 0);
-const maxDate = new Date(new Date().getFullYear() + 10, 0); // 当前日期
+const minDate = new Date(1900, 0);
+const maxDate = new Date(new Date().getFullYear() + 100, 0); // 当前日期
 
 const changeMonthEditStatus = () => {
   showMonthEdit.value = !showMonthEdit.value;
@@ -161,10 +161,10 @@ const MonthCost = ref(0);
 
 // 定义账单结构
 interface Bill {
-  id: number;
+  id: string;
   amount: number;
   type: string;
-  categoryId: number;
+  categoryId: string;
   categoryName?: string;
   detail: string;
   date: string;

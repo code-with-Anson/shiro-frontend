@@ -1,7 +1,7 @@
-import { showFailToast, showSuccessToast } from "vant";
 import COS from "cos-js-sdk-v5";
 import axiosInstance from "@/utils/axios";
 import { AxiosError } from "axios";
+import { ElMessage } from "element-plus";
 
 // 基础配置接口
 interface COSConfig {
@@ -163,12 +163,15 @@ export const handleImageChange = async (
 
     // 调用成功回调
     onSuccess?.(userInfo.avatar);
-    showSuccessToast("头像更新成功");
   } catch (error) {
     const err = error instanceof Error ? error : new Error("处理图片时出错");
     onError?.(err);
     if (!options.onError) {
-      showFailToast(err.message);
+      ElMessage({
+        message: err.message,
+        type: "error",
+        plain: true,
+      });
     }
     console.error("处理图片错误:", error);
   } finally {

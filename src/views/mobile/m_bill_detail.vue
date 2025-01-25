@@ -9,7 +9,7 @@
     />
 
     <!-- 表单内容 -->
-    <van-form @submit="onSubmit">
+    <van-form @submit="updateThisBill">
       <!-- 金额输入 -->
       <van-field
         v-model="billForm.amount"
@@ -86,10 +86,24 @@
         placeholder="请输入备注"
       />
 
-      <!-- 提交按钮 -->
-      <div style="margin: 16px">
+      <div
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+          margin: 5rem auto;
+          width: 15rem;
+          align-items: center;
+        "
+      >
         <van-button round block type="primary" native-type="submit">
-          保存修改
+          保存
+        </van-button>
+        <van-button round block plain type="primary" @click="deleteThisBill">
+          删除
+        </van-button>
+        <van-button round block plain type="primary" @click="showCategoryEdit">
+          编辑分类
         </van-button>
       </div>
     </van-form>
@@ -97,6 +111,7 @@
 </template>
 
 <script setup lang="ts">
+import { updateBill } from "@/api/bill";
 import { ElMessage } from "element-plus";
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
@@ -129,8 +144,9 @@ const categoriesMap = ref<Record<string, any>>({});
 
 // 日期选择器配置
 const currentDate = ref([""]);
-const minDate = new Date(2000, 0, 1);
-const maxDate = new Date(2099, 11, 31);
+
+const minDate = new Date(1900, 0);
+const maxDate = new Date(new Date().getFullYear() + 100, 0); // 当前日期
 
 // 返回按钮处理
 const onClickLeft = () => {
@@ -138,15 +154,23 @@ const onClickLeft = () => {
 };
 
 // 类型选择处理
-const onTypeConfirm = (value: string) => {
-  billForm.value.type = value;
+const onTypeConfirm = (value: any) => {
+  // Picker返回的是一个对象，我们需要从selectedValues中取第一个值
+  billForm.value.type = value.selectedValues[0];
   showTypePopup.value = false;
 };
 
 // 分类选择处理
-const onCategoryConfirm = (value: string) => {
-  billForm.value.categoryName = value;
-  billForm.value.categoryId = categoriesMap.value[value].id;
+const onCategoryConfirm = (value: any) => {
+  // 同样从selectedValues中取值
+  const categoryName = value.selectedValues[0];
+  billForm.value.categoryName = categoryName;
+
+  // 从categoriesMap中获取分类信息
+  const category = categoriesMap.value[categoryName];
+  if (category) {
+    billForm.value.categoryId = category.id;
+  }
   showCategoryPopup.value = false;
 };
 
@@ -162,14 +186,25 @@ const initCategories = () => {
   const storedCategories = localStorage.getItem("categories");
   if (storedCategories) {
     const categories = JSON.parse(storedCategories);
+    // 在设置数据之前先打印看看数据结构
+    console.log("Loaded categories:", categories);
+
     // 转换为符合 PickerOption 类型的数组
     categoryColumns.value = categories.map((cat: any) => ({
       text: cat.name,
       value: cat.name,
     }));
+
+    // 构建查找映射
     categories.forEach((cat: any) => {
       categoriesMap.value[cat.name] = cat;
     });
+
+    // 打印处理后的数据，用于调试
+    console.log("Processed categoryColumns:", categoryColumns.value);
+    console.log("Processed categoriesMap:", categoriesMap.value);
+  } else {
+    console.warn("No categories found in localStorage");
   }
 };
 // 初始化账单数据
@@ -205,37 +240,56 @@ const initBillData = () => {
     router.back();
   }
 };
-
-// 保存修改
-const onSubmit = async () => {
+// 更新账单方法
+const updateThisBill = async () => {
   try {
-    const storedBills = localStorage.getItem("bills");
-    if (storedBills) {
-      let bills = JSON.parse(storedBills);
-      const index = bills.findIndex((b: any) => b.id === billForm.value.id);
-      if (index !== -1) {
-        bills[index] = { ...billForm.value };
-        localStorage.setItem("bills", JSON.stringify(bills));
-        // 清除 currentBill
-        localStorage.removeItem("currentBill");
-        router.back();
-        ElMessage({
-          message: "修改成功",
-          type: "success",
-          plain: true,
-        });
-      }
-    }
-  } catch (error) {
+    // 构造更新数据，只包含修改的字段
+    const updateData = {
+      id: billForm.value.id.toString(),
+      amount: Number(billForm.value.amount),
+      categoryId: billForm.value.categoryId.toString(),
+      date: billForm.value.date,
+      detail: billForm.value.detail,
+      type: billForm.value.type,
+    };
+
+    // 调用更新函数
+    await updateBill(updateData);
+
+    // 更新成功提示
     ElMessage({
-      message: "修改失败",
-      type: "error",
+      message: "更新成功！",
+      type: "success",
       plain: true,
     });
 
-    console.error("保存修改失败:", error);
+    // 清除当前账单缓存
+    localStorage.removeItem("currentBill");
+
+    // 返回上一页
+    router.back();
+  } catch (error: any) {
+    // 错误提示
+    ElMessage({
+      message: error.message || "更新失败，请稍后重试",
+      type: "error",
+      plain: true,
+    });
   }
 };
+
+// 删除账单处理函数
+const deleteThisBill = () => {
+  // 暂时添加一个空函数，等待具体实现
+  console.log("删除账单功能待实现");
+};
+
+// 显示分类编辑处理函数
+const showCategoryEdit = () => {
+  // 暂时添加一个空函数，等待具体实现
+  console.log("显示分类编辑功能待实现");
+};
+
 onMounted(() => {
   initCategories();
   initBillData();
@@ -252,6 +306,18 @@ onUnmounted(() => {
 }
 
 .van-form {
-  margin-top: 12px;
+  margin-top: 1rem;
+}
+
+/* 按钮组样式 */
+.button-group {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  gap: 1rem;
+}
+/* 按钮组中的 Vant 按钮 */
+:deep(.button-group .van-button) {
+  flex: 1;
 }
 </style>

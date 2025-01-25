@@ -141,7 +141,7 @@ import { passwordRules, usernameRules } from "@/utils/validators";
 
 // 数据结构定义部分：
 const user = ref({
-  userId: 0,
+  userId: "",
   email: "",
   name: "",
   sex: "",
@@ -240,6 +240,11 @@ const handleAvatarChange = async (event: Event) => {
     allowedTypes: ["image/jpeg", "image/png", "image/gif"],
     onSuccess: (imageUrl) => {
       console.log("上传成功，新的头像地址:", imageUrl);
+      ElMessage({
+        message: "更新成功",
+        type: "success",
+        plain: true,
+      });
       user.value.avatar = imageUrl;
     },
     onError: (error) => {
