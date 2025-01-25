@@ -1,8 +1,5 @@
 <template>
   <div class="m_bills">
-    <!-- 顶部导航 -->
-    <van-nav-bar title="汐落" />
-
     <!-- Sticky 固定顶部 -->
     <van-sticky>
       <van-cell
@@ -12,6 +9,7 @@
         title-class="month-title"
         value-class="month-cost"
         label-class="month-earn"
+        class="top-bar"
         is-link
         @click="changeMonthEditStatus"
       />
@@ -54,12 +52,15 @@
         />
       </template>
     </van-cell-group>
-    <van-button
-      id="add-button"
-      icon="plus"
-      color="#39C5BB"
-      @click="toAddNewBill"
-    />
+
+    <div class="bottom-bar">
+      <van-button
+        id="add-button"
+        icon="plus"
+        color="#39C5BB"
+        @click="toAddNewBill"
+      />
+    </div>
   </div>
 </template>
 
@@ -92,6 +93,7 @@ const hideMonthEdit = () => {
 
 // 获取指定年月账单
 const getMonthBill = async () => {
+  hideMonthEdit();
   try {
     // 将日期选择器的值转换为合适的格式
     const month = parseInt(currentDate.value[1]);
@@ -301,7 +303,7 @@ onMounted(async () => {
 
 <style scoped>
 .m_bills {
-  margin-bottom: 5rem;
+  padding-bottom: 10rem; /* 替换原来的 margin-bottom */
 }
 
 ::v-deep(.van-cell__value.month-cost) {
@@ -362,8 +364,12 @@ onMounted(async () => {
   width: 4rem;
   height: 4rem;
   position: fixed;
-  bottom: 8rem;
+  bottom: 5rem;
   right: 1rem;
-  z-index: 100;
+}
+.top-bar {
+  border-bottom-style: solid;
+  border-bottom-color: #00000055;
+  border-width: 0.2rem;
 }
 </style>
