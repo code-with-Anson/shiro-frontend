@@ -101,8 +101,18 @@ const updateBackend = async (imageUrl: string): Promise<UserInfo> => {
   } catch (error) {
     if (error instanceof AxiosError) {
       if (error.response?.data) {
+        ElMessage({
+          message: error.response.data.msg || "头像更新失败",
+          type: "error",
+          plain: true,
+        });
         throw new Error(error.response.data.msg || "头像更新失败");
       } else if (error.request) {
+        ElMessage({
+          message: "网络错误，请稍后重试",
+          type: "error",
+          plain: true,
+        });
         throw new Error("网络错误，请稍后重试");
       }
     }
@@ -137,6 +147,11 @@ export const handleImageChange = async (
 
     // 验证文件类型
     if (!allowedTypes.includes(file.type)) {
+      ElMessage({
+        message: "传入了错误的格式",
+        type: "error",
+        plain: true,
+      });
       throw new Error(
         `仅支持 ${allowedTypes
           .map((type) => type.split("/")[1])
@@ -146,6 +161,11 @@ export const handleImageChange = async (
 
     // 验证文件大小
     if (file.size > maxSize) {
+      ElMessage({
+        message: `图片大小不能超过${Math.floor(maxSize / 1024 / 1024)}MB`,
+        type: "error",
+        plain: true,
+      });
       throw new Error(`图片大小不能超过${Math.floor(maxSize / 1024 / 1024)}MB`);
     }
 

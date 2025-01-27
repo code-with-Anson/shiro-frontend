@@ -86,7 +86,9 @@
         autosize
         label="备注"
         type="textarea"
-        placeholder="请输入备注"
+        placeholder="请输入备注(最多100字)"
+        maxlength="100"
+        show-word-limit
       />
 
       <div
@@ -215,6 +217,7 @@ const initCategories = () => {
       ElMessage({
         message: "分类数据格式错误",
         type: "error",
+        plain: true,
       });
     }
   } else {
@@ -228,6 +231,7 @@ const handleCategoryClick = () => {
     ElMessage({
       message: "请先选择类型（支出/收入）",
       type: "warning",
+      plain: true,
     });
     return;
   }

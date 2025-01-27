@@ -46,6 +46,7 @@
           :value="`${item.type}:
         ￥${item.amount}`"
           :label="item.detail"
+          label-class="bill-detail"
           is-link
           :value-class="item.type === '支出' ? 'bill-cost' : 'bill-earn'"
           @click="() => navigateToBillDetail(item)"
@@ -140,11 +141,6 @@ const getMonthBill = async () => {
         .filter((bill) => bill.type === "收入")
         .reduce((sum, bill) => sum + bill.amount, 0);
       console.log("处理后的账单:", bills.value);
-      ElMessage({
-        message: "获取成功！",
-        type: "success",
-        plain: true,
-      });
     }
   } catch (error: any) {
     console.error("获取账单失败:", error);
@@ -339,5 +335,13 @@ onMounted(async () => {
   border-bottom-style: solid;
   border-bottom-color: #00000055;
   border-width: 0.2rem;
+}
+
+:deep(.van-cell__label.bill-detail) {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12rem;
 }
 </style>
