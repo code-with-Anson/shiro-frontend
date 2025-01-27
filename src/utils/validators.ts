@@ -48,3 +48,42 @@ export const verificationCodeRules: ValidationRule[] = [
     message: "验证码是6位数字",
   },
 ];
+
+// 金额格式化函数
+export const formatAmount = (value: string): string => {
+  // 移除非数字字符（保留小数点）
+  let formatted = value.replace(/[^\d.]/g, "");
+
+  // 确保只有一个小数点
+  const parts = formatted.split(".");
+  if (parts.length > 2) {
+    formatted = parts[0] + "." + parts.slice(1).join("");
+  }
+
+  // 限制小数位数为2位
+  if (parts.length === 2) {
+    formatted = parts[0] + "." + parts[1].slice(0, 2);
+  }
+
+  // 限制整数部分为9位
+  if (parts[0].length > 9) {
+    formatted = parts[0].slice(0, 9) + (parts[1] ? "." + parts[1] : "");
+  }
+
+  return formatted;
+};
+
+// 金额验证函数
+const validateAmount = (value: string) => {
+  const num = parseFloat(value);
+  return !isNaN(num) && num > 0 && num < 100000000;
+};
+
+// 金额验证规则
+export const amountRules: ValidationRule[] = [
+  { required: true, message: "请填写金额" },
+  {
+    validator: validateAmount,
+    message: "请输入0-1亿元之间的数字",
+  },
+];

@@ -16,7 +16,7 @@
         type="number"
         label="金额"
         placeholder="请输入金额"
-        :rules="[{ required: true, message: '请输入金额' }]"
+        :rules="amountRules"
       />
 
       <!-- 类型选择 -->
@@ -103,6 +103,7 @@ import { addBill } from "@/api/bill"; // 确保已创建此API函数
 import { ElMessage } from "element-plus";
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
+import { amountRules } from "@/utils/validators";
 
 const router = useRouter();
 

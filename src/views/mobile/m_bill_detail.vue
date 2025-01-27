@@ -16,7 +16,7 @@
         type="number"
         label="金额"
         placeholder="请输入金额"
-        :rules="[{ required: true, message: '请输入金额' }]"
+        :rules="amountRules"
       />
 
       <!-- 类型选择 -->
@@ -118,6 +118,8 @@ import { ElMessage } from "element-plus";
 import { showConfirmDialog, showDialog } from "vant";
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
+import { amountRules } from "@/utils/validators";
+
 const router = useRouter();
 
 // 表单数据
