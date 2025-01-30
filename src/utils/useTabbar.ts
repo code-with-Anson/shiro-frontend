@@ -11,9 +11,14 @@ export function useTabbar() {
 
   // 定义路由路径和 Tabbar 索引的映射关系
   const routeMap = {
-    "/": 0, // 根路径对应 Tabbar 索引 0
-    "/renew_bill": 1, // "/renew_bill" 路径对应 Tabbar 索引 1
-    "/me": 2, // "/me" 路径对应 Tabbar 索引 2
+    "/": 0, // 常规账单页面
+    "/bill-add": 0, //常规账单添加页面
+    "/bill-detail": 0, //常规账单编辑页面
+    "/renew_bill": 1, // 循环账单页面
+    "/edit-renew-category": 1, //循环账单分类编辑页面
+    "/add-renew-bill": 1, //循环账单添加页面
+    "/edit-renew-bill": 1, //循环账单编辑页面
+    "/me": 2, // 个人信息页面
   };
 
   // 监听路由路径的变化，并根据新的路径更新 active 的值

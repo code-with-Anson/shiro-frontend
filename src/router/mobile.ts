@@ -50,6 +50,21 @@ const mobileRouter = createRouter({
       name: "m_bill_add",
       component: () => import("@/views/mobile/m_bill_add.vue"),
     },
+    {
+      path: "/edit-renew-category",
+      name: "m_renew_category_edit",
+      component: () => import("@/views/mobile/m_renew_category_edit.vue"),
+    },
+    {
+      path: "/add-renew-bill",
+      name: "m_renew_bill_add",
+      component: () => import("@/views/mobile/m_renew_bill_add.vue"),
+    },
+    {
+      path: "/edit-renew-bill",
+      name: "m_renew_bill_edit",
+      component: () => import("@/views/mobile/m_renew_bill_edit.vue"),
+    },
   ],
 });
 

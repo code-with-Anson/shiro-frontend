@@ -89,7 +89,7 @@
         placeholder="请输入备注"
       />
 
-      <div style="margin: 2rem 1rem">
+      <div style="margin: 2rem auto; width: 15rem">
         <van-button round block type="primary" native-type="submit">
           保存
         </van-button>
