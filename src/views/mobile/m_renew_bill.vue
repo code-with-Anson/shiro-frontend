@@ -220,7 +220,7 @@ van-badge__wrapper van-icon van-icon-arrow van-cell__right-icon
   border-width: 0.1rem;
   border-radius: 0.5rem;
   /* 通过将#52a1e5转换成rgba来获取边框透明度的设置选项 */
-  border-color: rgba(82, 161, 229, 0.5);
+  border-color: rgba(82, 161, 229, 0.3);
 }
 
 /* 把转向详情的按钮推到最右边 */
