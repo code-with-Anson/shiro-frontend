@@ -333,7 +333,7 @@ onMounted(async () => {
 }
 .top-bar {
   border-bottom-style: solid;
-  border-bottom-color: #00000055;
+  border-bottom-color: #39c5bb;
   border-width: 0.2rem;
 }
 

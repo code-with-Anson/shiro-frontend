@@ -1,12 +1,14 @@
 <template>
-  <div>
+  <div class="m_renew_category">
     <!-- 顶部导航 -->
-    <van-nav-bar
-      title="编辑循环账单分类"
-      left-text="返回"
-      left-arrow
-      @click-left="onClickLeft"
-    />
+    <van-sticky>
+      <van-nav-bar
+        title="编辑循环账单分类"
+        left-text="返回"
+        left-arrow
+        @click-left="onClickLeft"
+      />
+    </van-sticky>
     <div class="cell-group-renew-categories">
       <!-- 循环账单分类列表 -->
       <van-cell-group>
@@ -58,6 +60,15 @@
         </div>
       </van-form>
     </van-popup>
+
+    <div class="bottom-bar">
+      <van-button
+        id="add-button"
+        icon="plus"
+        color="#39C5BB"
+        @click="showNewCategoryAdd"
+      />
+    </div>
   </div>
 </template>
 
@@ -196,7 +207,6 @@ onMounted(async () => {
 
 .cell-group-renew-categories {
   margin-left: 1rem;
-  margin-right: 1rem;
 }
 
 /* 弹出层样式 */
@@ -208,18 +218,31 @@ onMounted(async () => {
 
 .popup-title {
   text-align: center;
-  font-size: 18px;
+  font-size: 1rem;
   font-weight: bold;
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
 }
 
 .button-group {
   display: flex;
   justify-content: space-around;
-  margin-top: 20px;
+  margin-top: 1rem;
 }
-
 .button-group .van-button {
   width: 40%;
+}
+
+#add-button {
+  border-radius: 50%;
+  font-size: 1.5rem;
+  width: 4rem;
+  height: 4rem;
+  position: fixed;
+  bottom: 5rem;
+  right: 1rem;
+}
+
+.m_renew_category {
+  padding-bottom: 10rem; /* 替换原来的 margin-bottom */
 }
 </style>

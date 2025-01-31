@@ -1,9 +1,17 @@
 <template>
   <div class="renew-bill">
-    <div class="page-header">
-      <h1 class="page-title">循环账单</h1>
-      <el-button plain @click="toEditRenewCategories">编辑分类</el-button>
-    </div>
+    <!-- Sticky 固定顶部 -->
+    <van-sticky class="top-bar">
+      <div class="page-header">
+        <h1 class="page-title">循环账单</h1>
+        <el-button
+          plain
+          @click="toEditRenewCategories"
+          class="edit-category-button"
+          >编辑分类</el-button
+        >
+      </div>
+    </van-sticky>
     <!-- 循环账单展示：以分类为折叠栏目，展开时获取循环账单 -->
     <div class="renew-category-collapse">
       <el-collapse v-model="activeName">
@@ -214,11 +222,32 @@ onMounted(async () => {
 <style scoped>
 /* 因为接下来的样式设置将会很复杂，所以我的说明会写的比较详细 */
 
+.renew-bill {
+  padding-bottom: 5rem;
+}
+
 .page-header {
-  width: 90vw;
+  width: 100vw;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background-color: #fff;
+  border-bottom-style: solid;
+  border-width: 0.2rem;
+  border-bottom-color: #39c5bb;
+  border-bottom-style: solid;
+}
+
+/* 这个用于设置页面大标题的样式 */
+.page-title {
+  margin-bottom: 1rem;
+  margin-left: 2rem;
+  font-size: 1.5rem;
+  color: #39c5bb;
+}
+
+.edit-category-button {
+  margin-right: 2rem;
 }
 
 /* 这个用来设置整个折叠栏目的样式 */
@@ -264,14 +293,6 @@ van-badge__wrapper van-icon van-icon-arrow van-cell__right-icon
 .custom-title {
   vertical-align: middle;
   font-weight: bold;
-}
-
-/* 这个用于设置页面大标题的样式 */
-.page-title {
-  margin-bottom: 1rem;
-  margin-left: 2rem;
-  font-size: 1.5rem;
-  color: #39c5bb;
 }
 
 /* ----------value样式设置开始---------- */
