@@ -101,8 +101,8 @@ export const RenewCategoryRules: ValidationRule[] = [
 export const RenewBillNameRules: ValidationRule[] = [
   { required: true, message: "请填写名称" },
   {
-    validator: (value: string) => value.length >= 1 && value.length <= 8,
-    message: "名称在1到8位之间",
+    validator: (value: string) => value.length >= 1 && value.length <= 10,
+    message: "名称在1到10位之间",
   },
 ];
 
