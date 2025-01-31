@@ -12,7 +12,8 @@
         >
       </div>
     </van-sticky>
-    <!-- 循环账单展示：以分类为折叠栏目，展开时获取循环账单 -->
+
+    <!-- 循环账单展示：以分类为折叠栏目 -->
     <div class="renew-category-collapse">
       <el-collapse v-model="activeName">
         <el-collapse-item
@@ -21,50 +22,46 @@
           :title="renewcategory.name"
           :name="renewcategory.id"
         >
-        </el-collapse-item>
-        <el-collapse-item title="测试循环账单用">
+          <!-- 循环账单列表 -->
           <van-cell
-            :label="truncateText(RenewBillTest.records[0].details)"
+            v-for="bill in getBillsByCategory(renewcategory.id)"
+            :key="bill.id"
+            :label="truncateText(bill.details)"
             size="large"
+            style="margin-bottom: 1rem"
           >
             <!-- 使用 title 插槽来自定义标题 -->
             <template #title>
-              <span class="custom-title">{{
-                RenewBillTest.records[0].name
-              }}</span>
-              <van-tag plain type="success">{{
-                RenewBillTest.records[0].cycle
-              }}</van-tag>
-              <van-tag plain type="warning"
-                >{{ RenewBillTest.records[0].cost }}元</van-tag
-              >
+              <span class="custom-title">{{ bill.name }}</span>
+              <van-tag plain type="success">{{ bill.cycle }}</van-tag>
+              <van-tag plain type="warning">实付{{ bill.cost }}元</van-tag>
             </template>
             <!-- 使用 value 插槽来自定义账单细节展示部分 -->
             <template #value>
               <div class="details-display-container">
                 <div class="cycle-cost">
-                  年付：{{ YearCostDisplay }}元 <br />月付：{{
-                    MonthCostDisplay
-                  }}元 <br />周付：{{ WeekCostDisplay }}元 <br />日付：{{
-                    DayCostDisplay
-                  }}元
+                  年付：{{ calculatePeriodCost(bill, "year") }}元 <br />
+                  月付：{{ calculatePeriodCost(bill, "month") }}元 <br />
+                  周付：{{ calculatePeriodCost(bill, "week") }}元 <br />
+                  日付：{{ calculatePeriodCost(bill, "day") }}元
                 </div>
                 <div class="cycle-display">
-                  开始：{{ RenewBillTest.records[0].beginning }}<br />结束：{{
-                    RenewBillTest.records[0].ending
-                  }}<br />
+                  开始：{{ bill.beginning }}<br />
+                  结束：{{ bill.ending }}<br />
                   <div class="renew-status">
                     自动续费：
                     <van-switch
-                      :model-value="AutoRenew"
-                      @update:model-value="onUpdateValue"
+                      :model-value="bill.renew === '开启'"
+                      @update:model-value="(val) => onUpdateValue(val, bill)"
                       active-color="#39c5bb"
                       inactive-color="#dcdee0"
                       size="1rem"
                     ></van-switch>
                   </div>
                   <br />
-                  <el-button plain @click="toEditRenewBill">编辑</el-button>
+                  <el-button plain @click="() => toEditRenewBill(bill)"
+                    >编辑</el-button
+                  >
                 </div>
               </div>
             </template>
@@ -75,7 +72,7 @@
   </div>
 </template>
 <script lang="ts" setup>
-import { getRenewBills } from "@/api/renew_bill";
+import { getRenewBills, updateAutoRenewStatus } from "@/api/renew_bill";
 import { getAllRenewCategories } from "@/api/renew_category";
 import { ElMessage } from "element-plus";
 import { showConfirmDialog } from "vant";
@@ -124,24 +121,40 @@ const router = useRouter();
 // 这里定义使用到的循环账单分类的数据结构
 const RenewCategories = ref<RenewCategory[]>([]);
 
-const YearCostDisplay = ref(0);
-const MonthCostDisplay = ref(0);
-const WeekCostDisplay = ref(0);
-const DayCostDisplay = ref(0);
-
 // 用来表示循环账单的自动续费状态
 const AutoRenew = ref(true);
 
-// 用来切换自动续费状态
-// TODO 这里要写一个更改状态的请求发送
-const onUpdateValue = (newValue: any) => {
-  showConfirmDialog({
-    message: "是否切换状态",
-    width: "20rem",
-    confirmButtonColor: "#39c5bb",
-  }).then(() => {
-    AutoRenew.value = newValue;
-  });
+// 修改自动续费状态切换函数
+const onUpdateValue = async (
+  newValue: boolean,
+  bill: RenewBill["records"][0]
+) => {
+  try {
+    await showConfirmDialog({
+      message: "是否切换状态",
+      width: "20rem",
+      confirmButtonColor: "#39c5bb",
+    });
+
+    // 根据开关状态设置续费状态
+    const renewStatus = newValue ? "开启" : "未开启";
+    await updateAutoRenewStatus(bill.id, renewStatus);
+
+    // 更新本地数据
+    const index = RenewBills.value.records.findIndex(
+      (item) => item.id === bill.id
+    );
+    if (index !== -1) {
+      RenewBills.value.records[index].renew = renewStatus;
+    }
+  } catch (error: any) {
+    console.error("更新续费状态失败:", error);
+    ElMessage({
+      message: error.message || "更新失败，请稍后重试",
+      type: "error",
+      plain: true,
+    });
+  }
 };
 
 // 获取循环账单数据
@@ -160,29 +173,15 @@ const getRenewBillsList = async () => {
   }
 };
 
-// 循环账单的模拟数据
-const RenewBillTest = ref<RenewBill>({
-  // 注意这里不需要数组
-  records: [
-    {
-      // records 是一个数组
-      id: 1,
-      name: "天童爱丽丝的循环账单",
-      details:
-        "这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；",
-      categoryId: 26,
-      cycle: "年付",
-      beginning: "2025-01-01",
-      ending: "2026-01-01",
-      renew: "未开启",
-      cost: 23.44,
-    },
-  ],
-  total: 1,
-  size: 5,
-  current: 1,
-  pages: 1,
-});
+// 通过这个函数过滤账单，确保每个分类下面只显示该分类的循环账单
+// 其实我开始是想按照分类获取账单的，后来综合的考量了觉得意义不大
+// 正常人的循环账单顶天了也就30条呗
+// 而且还有redis缓存，应该没问题
+const getBillsByCategory = (categoryId: string) => {
+  return RenewBills.value.records.filter(
+    (bill) => bill.categoryId.toString() === categoryId
+  );
+};
 
 // 文本截断，如果循环账单备注超过一定数量的字符，后面就显示省略号
 const truncateText = (text: string, limit: number = 80): string => {
@@ -190,12 +189,14 @@ const truncateText = (text: string, limit: number = 80): string => {
   return text.length <= limit ? text : `${text.slice(0, limit)}...`;
 };
 
-// 计算每种周期的付款金额
-const calculateCosts = () => {
-  // 获取开始和结束日期
-  const startDate = new Date(RenewBillTest.value.records[0].beginning);
-  const endDate = new Date(RenewBillTest.value.records[0].ending);
-  const totalCost = RenewBillTest.value.records[0].cost;
+// 计算不同周期的费用
+const calculatePeriodCost = (
+  bill: RenewBill["records"][0],
+  period: "day" | "week" | "month" | "year"
+) => {
+  const startDate = new Date(bill.beginning);
+  const endDate = new Date(bill.ending);
+  const totalCost = bill.cost;
 
   // 计算总天数差
   const daysDiff = Math.ceil(
@@ -205,11 +206,15 @@ const calculateCosts = () => {
   // 计算每天的成本
   const costPerDay = totalCost / daysDiff;
 
-  // 设置不同周期的显示值，保留2位小数
-  DayCostDisplay.value = Number(costPerDay.toFixed(2));
-  WeekCostDisplay.value = Number((costPerDay * 7).toFixed(2));
-  MonthCostDisplay.value = Number((costPerDay * 30).toFixed(2));
-  YearCostDisplay.value = Number((costPerDay * 365).toFixed(2));
+  // 根据周期返回对应的费用
+  const costs = {
+    day: costPerDay,
+    week: costPerDay * 7,
+    month: costPerDay * 30,
+    year: costPerDay * 365,
+  };
+
+  return Number(costs[period].toFixed(2));
 };
 
 // 获取用户循环账单分类
@@ -235,22 +240,140 @@ const toEditRenewCategories = () => {
   router.push("/edit-renew-category");
 };
 
-const toEditRenewBill = () => {
+const toEditRenewBill = (bill: RenewBill["records"][0]) => {
+  // 将当前选中的账单存入localStorage
+  localStorage.setItem("currentRenewBill", JSON.stringify(bill));
+  console.log(
+    "现在存储到本地的循环账单信息" + localStorage.getItem("currentRenewBill")
+  );
+  // 跳转到编辑页面
   router.push("/edit-renew-bill");
 };
 
 onMounted(async () => {
-  getUserRenewCategories();
-  calculateCosts();
+  await getUserRenewCategories();
   await getRenewBillsList(); // 新增: 获取循环账单数据
 });
+
+// 这里留一个测试用的模板
+// <!-- 循环账单展示：以分类为折叠栏目，展开时获取循环账单 -->
+//     <div class="renew-category-collapse">
+//       <el-collapse v-model="activeName">
+//         <div class="test">
+//           <el-collapse-item title="测试循环账单用">
+//             <van-cell
+//               :label="truncateText(RenewBillTest.records[0].details)"
+//               size="large"
+//             >
+//               <!-- 使用 title 插槽来自定义标题 -->
+//               <template #title>
+//                 <span class="custom-title">{{
+//                   RenewBillTest.records[0].name
+//                 }}</span>
+//                 <van-tag plain type="success">{{
+//                   RenewBillTest.records[0].cycle
+//                 }}</van-tag>
+//                 <van-tag plain type="warning"
+//                   >{{ RenewBillTest.records[0].cost }}元</van-tag
+//                 >
+//               </template>
+//               <!-- 使用 value 插槽来自定义账单细节展示部分 -->
+//               <template #value>
+//                 <div class="details-display-container">
+//                   <div class="cycle-cost">
+//                     年付：{{ YearCostDisplay }}元 <br />月付：{{
+//                       MonthCostDisplay
+//                     }}元 <br />周付：{{ WeekCostDisplay }}元 <br />日付：{{
+//                       DayCostDisplay
+//                     }}元
+//                   </div>
+//                   <div class="cycle-display">
+//                     开始：{{ RenewBillTest.records[0].beginning }}<br />结束：{{
+//                       RenewBillTest.records[0].ending
+//                     }}<br />
+//                     <div class="renew-status">
+//                       自动续费：
+//                       <van-switch
+//                         :model-value="AutoRenew"
+//                         @update:model-value="onUpdateValue"
+//                         active-color="#39c5bb"
+//                         inactive-color="#dcdee0"
+//                         size="1rem"
+//                       ></van-switch>
+//                     </div>
+//                     <br />
+//                     <el-button plain @click="toEditRenewBill">编辑</el-button>
+//                   </div>
+//                 </div>
+//               </template>
+//             </van-cell>
+//           </el-collapse-item>
+//         </div>
+//       </el-collapse>
+//     </div>
+// // 所需要的一些变量
+// const YearCostDisplay = ref(0);
+// const MonthCostDisplay = ref(0);
+// const WeekCostDisplay = ref(0);
+// const DayCostDisplay = ref(0);
+
+// // 循环账单的模拟数据
+// const RenewBillTest = ref<RenewBill>({
+//   records: [
+//     {
+//       // records 是一个数组
+//       id: 1,
+//       name: "天童爱丽丝的循环账单",
+//       details:
+//         "这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；这里是天童爱丽丝的循环账单，我是账单信息详情；",
+//       categoryId: 26,
+//       cycle: "年付",
+//       beginning: "2025-01-01",
+//       ending: "2026-01-01",
+//       renew: "未开启",
+//       cost: 23.44,
+//     },
+//   ],
+//   total: 1,
+//   size: 5,
+//   current: 1,
+//   pages: 1,
+// });
+
+// // 计算每种周期的付款金额
+// const calculateCosts = () => {
+//   // 获取开始和结束日期
+//   const startDate = new Date(RenewBillTest.value.records[0].beginning);
+//   const endDate = new Date(RenewBillTest.value.records[0].ending);
+//   const totalCost = RenewBillTest.value.records[0].cost;
+
+//   // 计算总天数差
+//   const daysDiff = Math.ceil(
+//     (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+//   );
+
+//   // 计算每天的成本
+//   const costPerDay = totalCost / daysDiff;
+
+//   // 设置不同周期的显示值，保留2位小数
+//   DayCostDisplay.value = Number(costPerDay.toFixed(2));
+//   WeekCostDisplay.value = Number((costPerDay * 7).toFixed(2));
+//   MonthCostDisplay.value = Number((costPerDay * 30).toFixed(2));
+//   YearCostDisplay.value = Number((costPerDay * 365).toFixed(2));
+// };
+
+// onMounted(async () => {
+//   getUserRenewCategories();
+//   calculateCosts();
+//   await getRenewBillsList(); // 新增: 获取循环账单数据
+// });
 </script>
 
 <style scoped>
 /* 因为接下来的样式设置将会很复杂，所以我的说明会写的比较详细 */
 
 .renew-bill {
-  padding-bottom: 5rem;
+  padding-bottom: 10rem;
 }
 
 .page-header {

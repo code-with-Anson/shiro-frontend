@@ -1,4 +1,5 @@
 import axiosInstance from "@/utils/axios";
+import { ElMessage } from "element-plus";
 
 // 循环账单记录接口
 interface RenewBillRecord {
@@ -59,6 +60,112 @@ export async function getRenewBills(): Promise<RenewBillResponse> {
     } else {
       // 其他错误
       throw new Error("获取失败，请稍后重试");
+    }
+  }
+}
+
+// 更新循环账单自动续费状态接口
+export async function updateAutoRenewStatus(
+  id: number,
+  renew: string
+): Promise<void> {
+  try {
+    const response = await axiosInstance.post("/renew-bill/update", {
+      id,
+      renew,
+    });
+
+    if (response.data.code === "20039") {
+      ElMessage({
+        message: "更新成功",
+        type: "success",
+        plain: true,
+      });
+    } else {
+      ElMessage({
+        message: response.data.msg || "更新失败",
+        type: "error",
+        plain: true,
+      });
+    }
+  } catch (error: any) {
+    if (error.response?.data) {
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      throw new Error("更新失败，请稍后重试");
+    }
+  }
+}
+
+// 更新循环账单
+export async function updateRenewBill(data: {
+  id: number;
+  name: string;
+  cost: number;
+  categoryId: number;
+  cycle: string;
+  beginning: string;
+  ending: string;
+  details: string;
+  renew: string;
+  isDeleted?: string;
+}): Promise<void> {
+  try {
+    const response = await axiosInstance.post("/renew-bill/update", data);
+
+    if (response.data.code === "20039") {
+      ElMessage({
+        message: "更新成功",
+        type: "success",
+        plain: true,
+      });
+    } else {
+      ElMessage({
+        message: response.data.msg || "更新失败",
+        type: "error",
+        plain: true,
+      });
+    }
+  } catch (error: any) {
+    if (error.response?.data) {
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      throw new Error("更新失败，请稍后重试");
+    }
+  }
+}
+
+// 删除循环账单
+export async function deleteRenewBill(renewBillIds: number[]): Promise<void> {
+  try {
+    const response = await axiosInstance.post("/renew-bill/real-delete", {
+      renewBill_ids: renewBillIds,
+    });
+
+    if (response.data.code === "20039") {
+      ElMessage({
+        message: "删除成功",
+        type: "success",
+        plain: true,
+      });
+    } else {
+      ElMessage({
+        message: response.data.msg || "删除失败",
+        type: "error",
+        plain: true,
+      });
+    }
+  } catch (error: any) {
+    if (error.response?.data) {
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      throw new Error("删除失败，请稍后重试");
     }
   }
 }
