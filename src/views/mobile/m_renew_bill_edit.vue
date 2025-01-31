@@ -15,7 +15,7 @@
         v-model="billForm.name"
         label="账单名称"
         placeholder="请输入账单名称"
-        :rules="[{ required: true, message: '请输入账单名称' }]"
+        :rules="RenewBillNameRules"
       />
 
       <!-- 账单金额 -->
@@ -24,7 +24,7 @@
         type="number"
         label="金额"
         placeholder="请输入金额"
-        :rules="[{ required: true, message: '请输入金额' }]"
+        :rules="RenewBillAmountRule"
       />
 
       <!-- 分类选择 -->
@@ -152,7 +152,7 @@ import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { showConfirmDialog } from "vant";
 import { deleteRenewBill, updateRenewBill } from "@/api/renew_bill";
-
+import { RenewBillNameRules, RenewBillAmountRule } from "@/utils/validators";
 const router = useRouter();
 
 // 表单数据

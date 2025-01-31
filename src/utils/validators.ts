@@ -90,9 +90,33 @@ export const amountRules: ValidationRule[] = [
 
 // 循环分类名称验证规则
 export const RenewCategoryRules: ValidationRule[] = [
-  { required: true, message: "请填写分类名称" },
+  { required: true, message: "请填写名称" },
   {
     validator: (value: string) => value.length >= 1 && value.length <= 8,
     message: "名称在1到8位之间",
+  },
+];
+
+// 循环账单名称验证规则
+export const RenewBillNameRules: ValidationRule[] = [
+  { required: true, message: "请填写名称" },
+  {
+    validator: (value: string) => value.length >= 1 && value.length <= 8,
+    message: "名称在1到8位之间",
+  },
+];
+
+// 循环账单金额验证函数
+const validateRenewBillAmount = (value: string) => {
+  const num = parseFloat(value);
+  return !isNaN(num) && num > 0 && num < 10000000;
+};
+
+// 循环账单金额验证规则
+export const RenewBillAmountRule: ValidationRule[] = [
+  { required: true, message: "请填写金额" },
+  {
+    validator: validateRenewBillAmount,
+    message: "请输入0-1千万元之间的数字",
   },
 ];
