@@ -169,3 +169,41 @@ export async function deleteRenewBill(renewBillIds: number[]): Promise<void> {
     }
   }
 }
+
+// 添加循环账单
+export async function addRenewBill(data: {
+  name: string;
+  cost: number;
+  categoryId: number;
+  cycle: string;
+  beginning: string;
+  ending: string;
+  details: string;
+  renew: string;
+}): Promise<void> {
+  try {
+    const response = await axiosInstance.post("/renew-bill/add", data);
+
+    if (response.data.code === "20039") {
+      ElMessage({
+        message: "添加成功",
+        type: "success",
+        plain: true,
+      });
+    } else {
+      ElMessage({
+        message: response.data.msg || "添加失败",
+        type: "error",
+        plain: true,
+      });
+    }
+  } catch (error: any) {
+    if (error.response?.data) {
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      throw new Error("添加失败，请稍后重试");
+    }
+  }
+}

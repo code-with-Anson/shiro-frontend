@@ -69,6 +69,14 @@
         </el-collapse-item>
       </el-collapse>
     </div>
+    <div class="bottom-bar">
+      <van-button
+        id="add-button"
+        icon="plus"
+        color="#52a1e5"
+        @click="toAddRenewBill"
+      />
+    </div>
   </div>
 </template>
 <script lang="ts" setup>
@@ -248,6 +256,10 @@ const toEditRenewBill = (bill: RenewBill["records"][0]) => {
   );
   // 跳转到编辑页面
   router.push("/edit-renew-bill");
+};
+
+const toAddRenewBill = () => {
+  router.push("add-renew-bill");
 };
 
 onMounted(async () => {
@@ -488,4 +500,14 @@ van-badge__wrapper van-icon van-icon-arrow van-cell__right-icon
   align-items: center;
 }
 /* ----------value样式设置结束---------- */
+
+#add-button {
+  border-radius: 50%;
+  font-size: 1.5rem;
+  width: 4rem;
+  height: 4rem;
+  position: fixed;
+  bottom: 5rem;
+  right: 1rem;
+}
 </style>
