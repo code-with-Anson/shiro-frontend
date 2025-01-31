@@ -40,7 +40,7 @@
       <van-popup v-model:show="showCategoryPopup" position="bottom">
         <van-picker
           :columns="categoryColumns"
-          :default-index="defaultCategoryIndex"
+          v-model="categoryPickerValue"
           @confirm="onCategoryConfirm"
           @cancel="showCategoryPopup = false"
         />
@@ -59,7 +59,7 @@
       <van-popup v-model:show="showCyclePopup" position="bottom">
         <van-picker
           :columns="cycleColumns"
-          :default-index="defaultCycleIndex"
+          v-model="cyclePickerValue"
           @confirm="onCycleConfirm"
           @cancel="showCyclePopup = false"
         />
@@ -155,8 +155,35 @@ import { deleteRenewBill, updateRenewBill } from "@/api/renew_bill";
 import { RenewBillNameRules, RenewBillAmountRule } from "@/utils/validators";
 const router = useRouter();
 
+// 定义循环账单表单接口
+interface RenewBillForm {
+  id: number;
+  name: string;
+  cost: string;
+  categoryId: number;
+  categoryName: string;
+  cycle: string;
+  beginning: string;
+  ending: string;
+  details: string;
+  renew: string;
+}
+
+// 选择器数据接口
+interface PickerConfirmEvent {
+  selectedValues: string[];
+  selectedOptions: Array<{
+    text: string;
+    value: string;
+  }>;
+}
+interface PickerColumn {
+  text: string;
+  value: string;
+}
+
 // 表单数据
-const billForm = ref({
+const billForm = ref<RenewBillForm>({
   id: 0,
   name: "",
   cost: "",
@@ -180,8 +207,9 @@ const beginDate = ref<string[]>([]);
 const endDate = ref<string[]>([]);
 const minDate = new Date(1900, 0, 1);
 const maxDate = new Date(new Date().getFullYear() + 100, 11, 31);
+
 // 付款周期选项
-const cycleColumns = [
+const cycleColumns = ref<PickerColumn[]>([
   {
     text: "日付",
     value: "日付",
@@ -198,15 +226,16 @@ const cycleColumns = [
     text: "年付",
     value: "年付",
   },
-];
+]);
 
 // 分类数据管理
 const allCategories = ref<Array<{ id: string; name: string }>>([]);
-const categoriesMap = ref<Record<string, string>>({}); // id 到 name 的映射
-const categoryColumns = ref<{ text: string; value: string }[]>([]);
-const defaultCategoryIndex = ref(0); // 新增：默认选中的分类索引
-const defaultCycleIndex = ref(0); // 新增：默认选中的周期索引
+const categoriesMap = ref<Record<string, string>>({});
+const categoryColumns = ref<PickerColumn[]>([]);
 
+// 分类和周期选择器的值
+const categoryPickerValue = ref<string[]>([]);
+const cyclePickerValue = ref<string[]>([]);
 // 返回按钮处理
 const onClickLeft = () => {
   localStorage.removeItem("currentRenewBill");
@@ -215,23 +244,28 @@ const onClickLeft = () => {
 
 // 分类选择处理
 const handleCategoryClick = () => {
-  // 找到当前分类的索引
-  defaultCategoryIndex.value = categoryColumns.value.findIndex(
-    (item) => item.value === billForm.value.categoryId.toString()
-  );
+  // 设置当前值
+  categoryPickerValue.value = [billForm.value.categoryId.toString()];
   showCategoryPopup.value = true;
 };
 
-// 分类选择处理
-const onCategoryConfirm = (value: any) => {
-  const selectedId = value.selectedOptions[0].value;
-  billForm.value.categoryId = selectedId;
+// 分类选择确认
+const onCategoryConfirm = ({
+  selectedValues,
+  selectedOptions,
+}: PickerConfirmEvent) => {
+  const selectedId = selectedValues[0];
+  billForm.value.categoryId = Number(selectedId);
   billForm.value.categoryName = categoriesMap.value[selectedId];
   showCategoryPopup.value = false;
 };
-// 周期选择处理
-const onCycleConfirm = (value: any) => {
-  billForm.value.cycle = value.selectedOptions[0].value; // 修改这里，使用 selectedOptions
+
+// 周期选择确认
+const onCycleConfirm = ({
+  selectedValues,
+  selectedOptions,
+}: PickerConfirmEvent) => {
+  billForm.value.cycle = selectedValues[0];
   showCyclePopup.value = false;
 };
 // 日期选择处理
@@ -246,6 +280,7 @@ const onEndDateConfirm = (value: any) => {
 };
 
 // 初始化分类数据
+// 修改分类数据的构建方式
 const initCategories = () => {
   const storedRenewCategories = localStorage.getItem("RenewCategories");
   if (storedRenewCategories) {
@@ -253,28 +288,26 @@ const initCategories = () => {
       const categories = JSON.parse(storedRenewCategories);
       allCategories.value = categories;
 
-      // 构建 ID 到名称的映射
       categories.forEach((cat: { id: string; name: string }) => {
         categoriesMap.value[cat.id] = cat.name;
       });
 
-      // 设置选择器数据
-      categoryColumns.value = categories.map((cat: { name: any; id: any }) => ({
-        text: cat.name,
-        value: cat.id, // 使用 id 作为值
-      }));
+      // 修改这里的数据结构
+      categoryColumns.value = categories.map(
+        (cat: { name: string; id: string }) => ({
+          text: cat.name,
+          value: cat.id.toString(), // 确保是字符串
+        })
+      );
     } catch (error) {
       console.error("解析分类数据失败:", error);
     }
   }
 };
 
-// 付款周期点击处理
+// 付款周期选择处理
 const handleCycleClick = () => {
-  // 找到当前周期的索引
-  defaultCycleIndex.value = cycleColumns.findIndex(
-    (item) => item.value === billForm.value.cycle
-  );
+  cyclePickerValue.value = [billForm.value.cycle];
   showCyclePopup.value = true;
 };
 
@@ -297,7 +330,10 @@ const updateEndDatePicker = () => {
 
 // 初始化账单数据时，设置正确的分类名称
 const initBillData = () => {
+  console.log("=== initBillData start ===");
   const currentBillStr = localStorage.getItem("currentRenewBill");
+  console.log("currentBillStr:", currentBillStr);
+
   if (!currentBillStr) {
     ElMessage({
       message: "未找到账单信息",
@@ -310,15 +346,20 @@ const initBillData = () => {
 
   try {
     const currentBill = JSON.parse(currentBillStr);
+    console.log("parsed currentBill:", currentBill);
+
     billForm.value = {
       ...currentBill,
       cost: currentBill.cost.toString(),
-      categoryName: categoriesMap.value[currentBill.categoryId], // 根据 categoryId 设置 categoryName
+      categoryId: Number(currentBill.categoryId),
+      categoryName: categoriesMap.value[currentBill.categoryId],
     };
+    console.log("billForm after init:", billForm.value);
   } catch (error) {
     console.error("解析账单数据失败:", error);
     router.back();
   }
+  console.log("=== initBillData end ===");
 };
 
 // 更新账单方法
