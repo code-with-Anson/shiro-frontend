@@ -36,18 +36,26 @@
       </van-cell-group>
     </div>
     <!-- 添加弹出层 -->
+    <!-- 添加弹出层 -->
     <van-popup
       v-model:show="showEdit"
       round
       position="center"
       class="edit-popup"
     >
-      <div class="popup-title">编辑分类名称</div>
+      <div class="popup-title">
+        {{ editType === "addNewCategory" ? "添加新分类" : "编辑分类名称" }}
+      </div>
       <van-form ref="formRef" @submit="handleSubmit">
+        <!-- 使用同一个表单字段，根据 editType 显示不同的 label -->
         <van-field
           v-model="newCategoryName"
-          label="分类名称"
-          placeholder="请输入分类名称"
+          :label="editType === 'addNewCategory' ? '新分类' : '分类名称'"
+          :placeholder="
+            editType === 'addNewCategory'
+              ? '请输入新分类名称'
+              : '请输入分类名称'
+          "
           :rules="RenewCategoryRules"
         />
         <div class="button-group">
@@ -66,7 +74,7 @@
         id="add-button"
         icon="plus"
         color="#39C5BB"
-        @click="showNewCategoryAdd"
+        @click="openAddCategory"
       />
     </div>
   </div>
@@ -74,6 +82,7 @@
 
 <script lang="ts" setup>
 import {
+  addNewCategory,
   deleteRenewCategory,
   getAllRenewCategories,
   updateRenewCategory,
@@ -88,6 +97,7 @@ import { useRouter } from "vue-router";
 const showEdit = ref(false);
 const newCategoryName = ref("");
 const currentEditId = ref<string>("");
+const editType = ref<"addNewCategory" | "editCategory">("editCategory");
 
 // 定义循环账单分类结构
 interface RenewCategory {
@@ -118,8 +128,16 @@ const getUserRenewCategories = async () => {
   }
 };
 
-// 打开编辑弹窗
+// 打开添加新循环分类弹窗
+const openAddCategory = () => {
+  editType.value = "addNewCategory";
+  newCategoryName.value = "";
+  showEdit.value = true;
+};
+
+// 打开编辑循环分类弹窗
 const openNameEdit = (id: string, name: string) => {
+  editType.value = "editCategory";
   currentEditId.value = id;
   newCategoryName.value = name;
   showEdit.value = true;
@@ -128,24 +146,23 @@ const openNameEdit = (id: string, name: string) => {
 // 处理表单提交
 const handleSubmit = async () => {
   try {
-    // 调用更新API
-    await updateRenewCategory(currentEditId.value, newCategoryName.value);
+    if (editType.value === "addNewCategory") {
+      // 处理添加新分类
+      await addNewCategory(newCategoryName.value);
+    } else {
+      // 处理编辑分类
+      await updateRenewCategory(currentEditId.value, newCategoryName.value);
+    }
 
     // 更新成功后刷新列表
     await getUserRenewCategories();
 
-    // 关闭弹窗
+    // 关闭弹窗和清空表单
     showEdit.value = false;
-
-    // 显示成功提示
-    ElMessage({
-      message: "更新成功！",
-      type: "success",
-      plain: true,
-    });
+    newCategoryName.value = ""; // 重置输入框的值
   } catch (error: any) {
     ElMessage({
-      message: error.message || "更新失败，请稍后重试",
+      message: error.message || "操作失败，请稍后重试", // 改为更通用的错误提示
       type: "error",
       plain: true,
     });
@@ -211,7 +228,7 @@ onMounted(async () => {
 
 /* 弹出层样式 */
 .edit-popup {
-  padding: 20px;
+  padding: 1rem;
   width: 80%;
   border-radius: 8px;
 }
