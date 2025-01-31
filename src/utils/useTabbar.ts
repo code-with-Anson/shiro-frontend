@@ -14,7 +14,7 @@ export function useTabbar() {
     "/": 0, // 常规账单页面
     "/bill-add": 0, //常规账单添加页面
     "/bill-detail": 0, //常规账单编辑页面
-    "/renew_bill": 1, // 循环账单页面
+    "/renew-bill": 1, // 循环账单页面
     "/edit-renew-category": 1, //循环账单分类编辑页面
     "/add-renew-bill": 1, //循环账单添加页面
     "/edit-renew-bill": 1, //循环账单编辑页面

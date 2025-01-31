@@ -13,7 +13,7 @@ const mobileRouter = createRouter({
       component: m_bill,
     },
     {
-      path: "/renew_bill",
+      path: "/renew-bill",
       name: "m_renew_bill",
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route

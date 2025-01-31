@@ -4,6 +4,7 @@
       <h1 class="page-title">循环账单</h1>
       <el-button plain @click="toEditRenewCategories">编辑分类</el-button>
     </div>
+    <!-- 循环账单展示：以分类为折叠栏目，展开时获取循环账单 -->
     <div class="renew-category-collapse">
       <el-collapse v-model="activeName">
         <el-collapse-item
@@ -17,7 +18,6 @@
           <van-cell
             :label="truncateText(RenewBillTest.records[0].details)"
             size="large"
-            is-link
           >
             <!-- 使用 title 插槽来自定义标题 -->
             <template #title>
@@ -45,6 +45,18 @@
                   开始：{{ RenewBillTest.records[0].beginning }}<br />结束：{{
                     RenewBillTest.records[0].ending
                   }}<br />
+                  <div class="renew-status">
+                    自动续费：
+                    <van-switch
+                      :model-value="AutoRenew"
+                      @update:model-value="onUpdateValue"
+                      active-color="#39c5bb"
+                      inactive-color="#dcdee0"
+                      size="1rem"
+                    ></van-switch>
+                  </div>
+                  <br />
+                  <el-button plain @click="toEditRenewBill">编辑</el-button>
                 </div>
               </div>
             </template>
@@ -57,6 +69,7 @@
 <script lang="ts" setup>
 import { getAllRenewCategories } from "@/api/renew_category";
 import { ElMessage } from "element-plus";
+import { showConfirmDialog } from "vant";
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -97,6 +110,21 @@ const YearCostDisplay = ref(111);
 const MonthCostDisplay = ref(0);
 const WeekCostDisplay = ref(0);
 const DayCostDisplay = ref(0);
+
+// 用来表示循环账单的自动续费状态
+const AutoRenew = ref(true);
+
+// 用来切换自动续费状态
+// TODO 这里要写一个更改状态的请求发送
+const onUpdateValue = (newValue: any) => {
+  showConfirmDialog({
+    message: "是否切换状态",
+    width: "20rem",
+    confirmButtonColor: "#39c5bb",
+  }).then(() => {
+    AutoRenew.value = newValue;
+  });
+};
 
 // 循环账单的模拟数据
 const RenewBillTest = ref<RenewBill>({
@@ -173,9 +201,13 @@ const toEditRenewCategories = () => {
   router.push("/edit-renew-category");
 };
 
+const toEditRenewBill = () => {
+  router.push("/edit-renew-bill");
+};
+
 onMounted(async () => {
   getUserRenewCategories();
-  calculateCosts(); // 添加这行
+  calculateCosts();
 });
 </script>
 
@@ -277,6 +309,12 @@ van-badge__wrapper van-icon van-icon-arrow van-cell__right-icon
 /* 周期时间段展示容器 */
 .cycle-display {
   color: #52a1e5;
+}
+
+/* 自动续费状态展示容器 */
+.renew-status {
+  display: inline-flex;
+  align-items: center;
 }
 /* ----------value样式设置结束---------- */
 </style>
