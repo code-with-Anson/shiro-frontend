@@ -75,6 +75,7 @@
   </div>
 </template>
 <script lang="ts" setup>
+import { getRenewBills } from "@/api/renew_bill";
 import { getAllRenewCategories } from "@/api/renew_category";
 import { ElMessage } from "element-plus";
 import { showConfirmDialog } from "vant";
@@ -105,6 +106,15 @@ interface RenewBill {
   pages: number;
 }
 
+// 循环账单数据 - 这个数据是实际填到表单中的
+const RenewBills = ref<RenewBill>({
+  records: [],
+  total: 0,
+  size: 0,
+  current: 1,
+  pages: 0,
+});
+
 // Element组件-Collapse折叠面板所需
 const activeName = ref("1");
 
@@ -114,7 +124,7 @@ const router = useRouter();
 // 这里定义使用到的循环账单分类的数据结构
 const RenewCategories = ref<RenewCategory[]>([]);
 
-const YearCostDisplay = ref(111);
+const YearCostDisplay = ref(0);
 const MonthCostDisplay = ref(0);
 const WeekCostDisplay = ref(0);
 const DayCostDisplay = ref(0);
@@ -132,6 +142,22 @@ const onUpdateValue = (newValue: any) => {
   }).then(() => {
     AutoRenew.value = newValue;
   });
+};
+
+// 获取循环账单数据
+const getRenewBillsList = async () => {
+  try {
+    const response = await getRenewBills();
+    RenewBills.value = response;
+    console.log("获取到的循环账单:", RenewBills.value);
+  } catch (error: any) {
+    console.error("获取循环账单失败:", error);
+    ElMessage({
+      message: "获取循环账单失败" + "\n" + error.message,
+      type: "error",
+      plain: true,
+    });
+  }
 };
 
 // 循环账单的模拟数据
@@ -216,6 +242,7 @@ const toEditRenewBill = () => {
 onMounted(async () => {
   getUserRenewCategories();
   calculateCosts();
+  await getRenewBillsList(); // 新增: 获取循环账单数据
 });
 </script>
 
