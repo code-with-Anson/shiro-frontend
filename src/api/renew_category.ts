@@ -12,6 +12,17 @@ interface RenewCategoryResponse {
   pages: number;
 }
 
+//统一响应类R数据结构接口
+interface ApiResponse<T> {
+  code: number;
+  msg: string;
+  data: T;
+}
+
+// 删除循环分类请求体
+interface deleteCategoryRequest {
+  renewCategoryIds: number[];
+}
 // 获取用户循环账单分类
 export async function getAllRenewCategories(): Promise<RenewCategoryResponse> {
   try {
@@ -40,6 +51,50 @@ export async function getAllRenewCategories(): Promise<RenewCategoryResponse> {
     } else {
       //其他错误
       throw new Error("获取失败，请稍后重试");
+    }
+  }
+}
+
+// 删除循环分类
+export async function deleteRenewCategory(toDelete: number[]): Promise<void> {
+  try {
+    const requestData: deleteCategoryRequest = {
+      renewCategoryIds: toDelete,
+    };
+    const response = await axiosInstance.post<ApiResponse<null>>(
+      "/renew-category/delete",
+      requestData
+    );
+  } catch (error: any) {
+    if (error.response?.data) {
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      throw new Error(error.message || "删除失败，请稍后重试");
+    }
+  }
+}
+
+export async function updateRenewCategory(
+  id: string,
+  newName: string
+): Promise<void> {
+  try {
+    const response = await axiosInstance.post<ApiResponse<null>>(
+      "/renew-category/update",
+      {
+        id,
+        name: newName,
+      }
+    );
+  } catch (error: any) {
+    if (error.response?.data) {
+      throw new Error(error.response.data.msg);
+    } else if (error.request) {
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      throw new Error(error.message || "更新失败，请稍后重试");
     }
   }
 }

@@ -116,7 +116,7 @@ interface DeleteBillRequest {
   bill_ids: number[];
 }
 
-// 使用接口约束请求体
+// 删除账单
 export async function deleteBill(billIds: number[]): Promise<void> {
   try {
     const requestData: DeleteBillRequest = {

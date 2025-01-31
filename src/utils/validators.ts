@@ -87,3 +87,12 @@ export const amountRules: ValidationRule[] = [
     message: "请输入0-1亿元之间的数字",
   },
 ];
+
+// 循环分类名称验证规则
+export const RenewCategoryRules: ValidationRule[] = [
+  { required: true, message: "请填写分类名称" },
+  {
+    validator: (value: string) => value.length >= 1 && value.length <= 8,
+    message: "名称在1到8位之间",
+  },
+];
