@@ -1,6 +1,6 @@
 <template>
   <div class="m_register">
-    <h1>移动端用户注册页面</h1>
+    <h1 style="font-size: 1.5rem; color: #39c5bb">注册</h1>
     <van-form @submit="registerUser">
       <van-cell-group inset>
         <van-field
@@ -28,10 +28,10 @@
       </van-cell-group>
       <div
         style="
-          margin: 3rem;
+          margin: 1rem;
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 1rem;
           align-items: center;
         "
       >
@@ -98,7 +98,7 @@ const goToLogin = () => {
 
 <style>
 .van-button {
-  width: 15rem; /* 或者其他适合的宽度 */
+  width: 12rem; /* 或者其他适合的宽度 */
 }
 
 .m_register {

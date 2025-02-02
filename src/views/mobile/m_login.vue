@@ -1,6 +1,6 @@
 <template>
   <div class="m_login">
-    <h1>移动端用户登录页面</h1>
+    <h1 style="font-size: 1.5rem; color: #52a1e5">汐落</h1>
     <van-form @submit="Login">
       <van-cell-group inset>
         <van-field
@@ -21,10 +21,10 @@
       </van-cell-group>
       <div
         style="
-          margin: 3rem;
+          margin: 1rem;
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 1rem;
           align-items: center;
         "
       >
@@ -93,7 +93,7 @@ const Login = async (values: { email: string; password: string }) => {
 
 <style>
 .van-button {
-  width: 15rem; /* 或者其他适合的宽度 */
+  width: 12rem; /* 或者其他适合的宽度 */
 }
 
 .m_login {

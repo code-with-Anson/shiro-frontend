@@ -97,7 +97,7 @@
           flex-direction: column;
           gap: 1.5rem;
           margin: 5rem auto;
-          width: 15rem;
+          width: 12rem;
           align-items: center;
         "
       >
@@ -383,21 +383,5 @@ onUnmounted(() => {
 <style scoped>
 .m_bill_detail {
   height: 90vh; /* 使容器占据较大的视口高度 */
-}
-
-.van-form {
-  margin-top: 1rem;
-}
-
-/* 按钮组样式 */
-.button-group {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 1.5rem;
-  gap: 1rem;
-}
-/* 按钮组中的 Vant 按钮 */
-:deep(.button-group .van-button) {
-  flex: 1;
 }
 </style>

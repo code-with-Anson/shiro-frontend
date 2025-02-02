@@ -332,12 +332,12 @@ onMounted(async () => {
 
 /* Vant 按钮样式 */
 :deep(.van-button) {
-  width: 15rem;
+  width: 12rem;
 }
 
 .userDetails {
   margin-top: 2rem;
-  width: 23rem;
+  width: 18rem;
 }
 
 /* 邮箱单元格样式 */
@@ -358,7 +358,7 @@ onMounted(async () => {
 /* 弹出层标题 */
 .popup-title {
   text-align: center;
-  font-size: 1.2rem;
+  font-size: 0.8rem;
   margin-bottom: 1rem;
 }
 

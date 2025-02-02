@@ -125,7 +125,7 @@
           flex-direction: column;
           gap: 1.5rem;
           margin: 5rem auto;
-          width: 15rem;
+          width: 12rem;
           align-items: center;
         "
       >

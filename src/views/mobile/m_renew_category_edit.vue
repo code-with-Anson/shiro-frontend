@@ -180,7 +180,7 @@ const deleteThisCategory = async (categoryId: string) => {
       title: "确认删除",
       message: "删除循环账单分类时，会将对应的循环账单一起删除，是否删除？",
       showCancelButton: true,
-      width: "20rem",
+      width: "15rem",
       confirmButtonColor: "#ff7875",
     }).catch(() => false); // 将取消操作转换为 false
     // 只有用户确认后才继续执行删除操作
@@ -251,9 +251,9 @@ onMounted(async () => {
 
 #add-button {
   border-radius: 50%;
-  font-size: 1.5rem;
-  width: 4rem;
-  height: 4rem;
+  font-size: 1.2rem;
+  width: 3rem;
+  height: 3rem;
   position: fixed;
   bottom: 5rem;
   right: 1rem;

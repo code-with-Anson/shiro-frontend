@@ -286,8 +286,4 @@ onMounted(() => {
 .m_bill_add {
   height: 100vh;
 }
-
-.van-form {
-  margin-top: 1rem;
-}
 </style>

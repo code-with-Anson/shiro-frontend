@@ -56,6 +56,7 @@
                       active-color="#39c5bb"
                       inactive-color="#dcdee0"
                       size="1rem"
+                      style="margin-bottom: 0.2rem"
                     ></van-switch>
                   </div>
                   <br />
@@ -399,16 +400,15 @@ onMounted(async () => {
   align-items: center;
   background-color: #fff;
   border-bottom-style: solid;
-  border-width: 0.2rem;
+  border-width: 0.1rem;
   border-bottom-color: #39c5bb;
   border-bottom-style: solid;
 }
 
 /* 这个用于设置页面大标题的样式 */
 .page-title {
-  margin-bottom: 1rem;
   margin-left: 2rem;
-  font-size: 1.5rem;
+  font-size: 1rem;
   color: #39c5bb;
 }
 
@@ -507,9 +507,9 @@ van-badge__wrapper van-icon van-icon-arrow van-cell__right-icon
 
 #add-button {
   border-radius: 50%;
-  font-size: 1.5rem;
-  width: 4rem;
-  height: 4rem;
+  font-size: 1.2rem;
+  width: 3rem;
+  height: 3rem;
   position: fixed;
   bottom: 5rem;
   right: 1rem;

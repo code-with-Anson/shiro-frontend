@@ -117,7 +117,7 @@
         show-word-limit
       />
 
-      <div style="margin: 5rem auto; width: 15rem; align-items: center">
+      <div style="margin: 5rem auto; width: 12rem; align-items: center">
         <van-button round block type="primary" native-type="submit">
           添加
         </van-button>

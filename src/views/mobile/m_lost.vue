@@ -1,6 +1,6 @@
 <template>
   <div class="m_lost">
-    <h1>移动端忘记密码页面</h1>
+    <h1 style="font-size: 1.5rem; color: #39c5bb">忘记密码</h1>
     <van-form @submit="sendEmail">
       <van-cell-group inset>
         <van-field
@@ -21,10 +21,10 @@
       </van-cell-group>
       <div
         style="
-          margin: 3rem;
+          margin: 1rem;
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 1rem;
           align-items: center;
         "
       >
@@ -124,7 +124,7 @@ const goToLogin = () => {
 
 <style>
 .van-button {
-  width: 15rem; /* 或者其他适合的宽度 */
+  width: 12rem; /* 或者其他适合的宽度 */
 }
 
 .m_lost {

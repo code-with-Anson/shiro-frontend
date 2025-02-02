@@ -267,19 +267,22 @@ onMounted(async () => {
 
 <style scoped>
 .m_bills {
-  padding-bottom: 10rem; /* 替换原来的 margin-bottom */
+  padding-bottom: 9rem; /* 替换原来的 margin-bottom */
 }
 
 ::v-deep(.van-cell__value.month-cost) {
+  font-size: 0.7rem;
   color: #39c5bb;
   font-weight: bold;
 }
 :deep(.van-cell__title.month-title) {
+  font-size: 0.8rem;
   font-weight: bold;
   color: #52a1e5;
 }
 
 :deep(.van-cell__label.month-earn) {
+  font-size: 0.7rem;
   font-weight: bold;
   color: #ff7875;
 }
@@ -309,7 +312,7 @@ onMounted(async () => {
 }
 
 .daily-amount {
-  font-size: 0.9rem;
+  font-size: 0.7rem;
   color: #666;
 }
 
@@ -324,9 +327,9 @@ onMounted(async () => {
 }
 #add-button {
   border-radius: 50%;
-  font-size: 1.5rem;
-  width: 4rem;
-  height: 4rem;
+  font-size: 1.2rem;
+  width: 3rem;
+  height: 3rem;
   position: fixed;
   bottom: 5rem;
   right: 1rem;
@@ -334,7 +337,7 @@ onMounted(async () => {
 .top-bar {
   border-bottom-style: solid;
   border-bottom-color: #39c5bb;
-  border-width: 0.2rem;
+  border-width: 0.1rem;
 }
 
 :deep(.van-cell__label.bill-detail) {
@@ -342,6 +345,6 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 12rem;
+  max-width: 10rem;
 }
 </style>
