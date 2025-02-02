@@ -29,7 +29,7 @@ coverage
 
 *.tsbuildinfo
 
+# 配置文件
 .env
-.env.dev
 .env.development
 .env.production
