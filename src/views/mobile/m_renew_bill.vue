@@ -137,32 +137,36 @@ const onUpdateValue = async (
   newValue: boolean,
   bill: RenewBill["records"][0]
 ) => {
-  try {
-    await showConfirmDialog({
-      message: "是否切换状态",
-      width: "20rem",
-      confirmButtonColor: "#39c5bb",
-    });
+  showConfirmDialog({
+    message: "是否切换状态",
+    width: "20rem",
+    confirmButtonColor: "#39c5bb",
+  })
+    .then(async () => {
+      try {
+        // 根据开关状态设置续费状态
+        const renewStatus = newValue ? "开启" : "未开启";
+        await updateAutoRenewStatus(bill.id, renewStatus);
 
-    // 根据开关状态设置续费状态
-    const renewStatus = newValue ? "开启" : "未开启";
-    await updateAutoRenewStatus(bill.id, renewStatus);
-
-    // 更新本地数据
-    const index = RenewBills.value.records.findIndex(
-      (item) => item.id === bill.id
-    );
-    if (index !== -1) {
-      RenewBills.value.records[index].renew = renewStatus;
-    }
-  } catch (error: any) {
-    console.error("更新续费状态失败:", error);
-    ElMessage({
-      message: error.message || "更新失败，请稍后重试",
-      type: "error",
-      plain: true,
+        // 更新本地数据
+        const index = RenewBills.value.records.findIndex(
+          (item) => item.id === bill.id
+        );
+        if (index !== -1) {
+          RenewBills.value.records[index].renew = renewStatus;
+        }
+      } catch (error: any) {
+        console.error("更新续费状态失败:", error);
+        ElMessage({
+          message: error.message || "更新失败，请稍后重试",
+          type: "error",
+          plain: true,
+        });
+      }
+    })
+    .catch(() => {
+      // 用户取消操作，不做任何处理
     });
-  }
 };
 
 // 获取循环账单数据
