@@ -32,8 +32,8 @@ export const passwordRules: ValidationRule[] = [
 export const usernameRules: ValidationRule[] = [
   { required: true, message: "请填写昵称" },
   {
-    validator: (value: string) => value.length >= 1 && value.length <= 8,
-    message: "昵称在1到8位之间",
+    validator: (value: string) => value.length >= 1 && value.length <= 10,
+    message: "昵称在1到10位之间",
   },
 ];
 
@@ -92,8 +92,8 @@ export const amountRules: ValidationRule[] = [
 export const RenewCategoryRules: ValidationRule[] = [
   { required: true, message: "请填写名称" },
   {
-    validator: (value: string) => value.length >= 1 && value.length <= 8,
-    message: "名称在1到8位之间",
+    validator: (value: string) => value.length >= 1 && value.length <= 10,
+    message: "名称在1到10位之间",
   },
 ];
 
