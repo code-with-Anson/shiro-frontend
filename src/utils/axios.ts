@@ -4,7 +4,7 @@ import axios from "axios";
 // 之后发送请求通过这个配置请求头等通用配置
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_ENDPOINT,
-  timeout: 5000,
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },

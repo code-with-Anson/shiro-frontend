@@ -42,6 +42,13 @@
           is-link
           @click="showPasswordEdit"
         />
+        <!-- 新增导出数据按钮 -->
+        <van-cell
+          title="导出账单"
+          value="发送至邮箱"
+          is-link
+          @click="showExportDialog"
+        />
       </van-cell-group>
     </div>
     <!-- 添加弹出层 -->
@@ -111,6 +118,67 @@
       </van-form>
     </van-popup>
 
+    <!-- 新增导出选择弹窗 -->
+    <van-popup
+      v-model:show="showExport"
+      round
+      position="center"
+      class="edit-popup"
+    >
+      <div class="popup-title">导出月度账单</div>
+      <van-form @submit="handleExport">
+        <!-- 年份选择 -->
+        <van-field
+          v-model="exportYear"
+          name="year"
+          label="年份"
+          placeholder="请输入年份"
+          type="number"
+          :rules="[{ required: true, message: '请输入年份' }]"
+        />
+        <!-- 月份选择 -->
+        <van-field
+          v-model="exportMonth"
+          name="month"
+          label="月份"
+          placeholder="可选，留空导出全年"
+          type="number"
+        />
+        <div class="button-group">
+          <van-button
+            round
+            native-type="button"
+            @click="showExport = false"
+            :disabled="exporting"
+          >
+            取消
+          </van-button>
+          <van-button
+            round
+            type="primary"
+            native-type="submit"
+            :loading="exporting"
+            loading-text="导出中..."
+          >
+            导出
+          </van-button>
+        </div>
+      </van-form>
+    </van-popup>
+
+    <!-- 添加全局加载指示器 -->
+    <van-overlay
+      :show="exportingOverlay"
+      :z-index="9999"
+      class="loading-overlay"
+    >
+      <div class="loading-content">
+        <van-loading color="#1989fa" size="48px" />
+        <p class="loading-text">正在准备账单数据...</p>
+        <p class="loading-tip">请稍候，数据将发送至您的邮箱</p>
+      </div>
+    </van-overlay>
+
     <van-form @submit="Logout">
       <div
         style="
@@ -138,6 +206,8 @@ import { onMounted, ref, computed, nextTick } from "vue";
 import { handleImageChange } from "@/api/avatarHandle";
 import { updateUserInfos } from "@/api/user";
 import { passwordRules, usernameRules } from "@/utils/validators";
+// 导入导出数据函数
+import { exportMonthlyBillsToEmail } from "@/api/exportData";
 
 // 数据结构定义部分：
 const user = ref({
@@ -167,6 +237,15 @@ const editType = ref("");
 const editValue = ref("");
 const newPassword = ref("");
 const confirmPassword = ref("");
+
+// 导出数据相关变量
+const showExport = ref(false);
+const exportYear = ref<string | number>(new Date().getFullYear());
+const exportMonth = ref<string | number>("");
+
+// 添加导出加载状态
+const exporting = ref(false);
+const exportingOverlay = ref(false);
 
 // 打开编辑弹窗的方法
 const showEmailEdit = () => {
@@ -200,6 +279,13 @@ const showPasswordEdit = () => {
     formRef.value?.resetValidation();
   });
   showEdit.value = true;
+};
+
+// 显示导出对话框
+const showExportDialog = () => {
+  exportYear.value = new Date().getFullYear();
+  exportMonth.value = "";
+  showExport.value = true;
 };
 
 // 确认两次输入的新邮箱保持一致
@@ -298,6 +384,47 @@ const handleSubmit = async () => {
   }
 };
 
+// 处理导出提交
+const handleExport = async (values: { year: number; month?: number }) => {
+  try {
+    const year = Number(exportYear.value);
+    // 如果月份为空，则不传递月份参数
+    const month =
+      exportMonth.value === "" ? undefined : Number(exportMonth.value);
+
+    // 验证月份范围
+    if (month !== undefined && (month < 1 || month > 12)) {
+      ElMessage({
+        message: "月份必须在1-12之间",
+        type: "error",
+        plain: true,
+      });
+      return;
+    }
+
+    // 使用加载状态回调
+    await exportMonthlyBillsToEmail(year, month, (loading) => {
+      exporting.value = loading;
+
+      // 如果加载时间超过500ms，才显示全屏遮罩，避免闪烁
+      if (loading) {
+        setTimeout(() => {
+          if (exporting.value) {
+            exportingOverlay.value = true;
+          }
+        }, 500);
+      } else {
+        exportingOverlay.value = false;
+      }
+    });
+
+    showExport.value = false;
+  } catch (error: any) {
+    // 错误处理，已在API中处理，这里不需要再显示错误消息
+    console.error("导出错误:", error);
+  }
+};
+
 // 退出登录
 const Logout = () => {
   logout();
@@ -379,5 +506,47 @@ onMounted(async () => {
   padding: 1rem 0;
   display: flex;
   justify-content: space-around;
+}
+
+/* 添加样式 */
+.loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.loading-text {
+  margin-top: 16px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+}
+
+.loading-tip {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* 按钮组样式 */
+.button-group {
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.button-group .van-button {
+  flex: 1;
 }
 </style>
