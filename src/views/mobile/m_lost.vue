@@ -1,56 +1,77 @@
 <template>
-  <div class="m_lost">
-    <h1 style="font-size: 1.5rem; color: #39c5bb">忘记密码</h1>
-    <van-form @submit="sendEmail">
-      <van-cell-group inset>
-        <van-field
-          v-model="email"
-          name="email"
-          label="邮箱"
-          placeholder="请输入注册时的邮箱"
-          :rules="emailRules"
-        />
-        <van-field
-          v-if="isEmailSent"
-          v-model="code"
-          name="code"
-          label="验证码"
-          placeholder="请输入验证码"
-          :rules="verificationCodeRules"
-        />
-      </van-cell-group>
-      <div
-        style="
-          margin: 1rem;
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          align-items: center;
-        "
-      >
-        <van-button
-          v-if="!isEmailSent"
-          round
-          block
-          type="primary"
-          native-type="submit"
-        >
-          发送验证码
-        </van-button>
-        <van-button
-          v-if="isEmailSent"
-          round
-          block
-          type="primary"
-          @click="verify"
-        >
-          进行验证
-        </van-button>
-        <van-button round block plain type="primary" @click="goToLogin">
-          返回登录
-        </van-button>
+  <div class="lost-container">
+    <div class="lost-card">
+      <!-- 标题部分 -->
+      <div class="logo-area">
+        <div class="app-logo">
+          <img src="/favicon.ico" alt="汐落Logo" />
+        </div>
+        <h1 class="app-title">汐落</h1>
+        <p class="app-subtitle">找回您的账号密码</p>
       </div>
-    </van-form>
+
+      <!-- 表单部分 -->
+      <van-form @submit="sendEmail" class="lost-form">
+        <van-cell-group inset>
+          <van-field
+            v-model="email"
+            name="email"
+            label="邮箱"
+            left-icon="envelop-o"
+            placeholder="请输入注册时的邮箱"
+            :rules="emailRules"
+          />
+          <van-field
+            v-if="isEmailSent"
+            v-model="code"
+            name="code"
+            label="验证码"
+            left-icon="passed"
+            placeholder="请输入验证码"
+            :rules="verificationCodeRules"
+          />
+        </van-cell-group>
+
+        <!-- 按钮区域 -->
+        <div class="button-group">
+          <van-button
+            v-if="!isEmailSent"
+            round
+            block
+            type="primary"
+            native-type="submit"
+            class="submit-btn"
+          >
+            发送验证码
+          </van-button>
+          <van-button
+            v-if="isEmailSent"
+            round
+            block
+            type="primary"
+            @click="verify"
+            class="submit-btn"
+          >
+            进行验证
+          </van-button>
+          <van-button
+            round
+            block
+            plain
+            type="primary"
+            @click="goToLogin"
+            class="back-btn"
+          >
+            返回登录
+          </van-button>
+        </div>
+      </van-form>
+    </div>
+
+    <!-- 页脚区域 -->
+    <div class="lost-footer">
+      <p>© 2025 汐落记账应用</p>
+    </div>
   </div>
 </template>
 
@@ -122,16 +143,161 @@ const goToLogin = () => {
 };
 </script>
 
-<style>
-.van-button {
-  width: 12rem; /* 或者其他适合的宽度 */
-}
-
-.m_lost {
+<style scoped>
+.lost-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 90vh; /* 使容器占据较大的视口高度 */
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+}
+
+.lost-card {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem 1.5rem;
+  margin-bottom: 2rem;
+  box-sizing: border-box;
+}
+
+.logo-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.app-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(120deg, #52a1e5 0%, #39c5bb 100%);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-logo img {
+  width: 120%;
+  height: 120%;
+  object-fit: cover;
+  position: relative;
+  z-index: 1;
+}
+
+.app-title {
+  font-size: 2rem;
+  font-weight: bold;
+  background: linear-gradient(90deg, #52a1e5, #39c5bb);
+  -webkit-background-clip: text;
+  color: transparent;
+  margin: 0.5rem 0;
+}
+
+.app-subtitle {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.lost-form {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+:deep(.van-cell-group) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 0.8rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 350px; /* 控制最大宽度 */
+}
+
+:deep(.van-field) {
+  padding: 12px 16px;
+}
+
+/* 修正字段内部对齐 */
+:deep(.van-field__left-icon) {
+  margin-right: 10px;
+}
+
+:deep(.van-field__control) {
+  text-align: left;
+}
+
+:deep(.van-cell__title) {
+  width: 4rem; /* 统一标签宽度 */
+  flex: none;
+}
+
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 350px; /* 与输入框保持一致 */
+}
+
+.submit-btn {
+  height: 3rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: linear-gradient(90deg, #52a1e5, #39c5bb);
+  border: none;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+.back-btn {
+  font-size: 0.85rem;
+  border-color: #52a1e5;
+  color: #52a1e5;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+:deep(.van-button) {
+  width: 100% !important;
+}
+
+.lost-footer {
+  text-align: center;
+  color: #666;
+  font-size: 0.8rem;
+  margin-top: auto;
+  width: 100%;
+}
+
+/* 响应式调整 */
+@media (max-height: 600px) {
+  .lost-container {
+    padding: 1rem;
+  }
+
+  .lost-card {
+    padding: 1.5rem 1rem;
+  }
+
+  .app-logo {
+    width: 60px;
+    height: 60px;
+  }
 }
 </style>
