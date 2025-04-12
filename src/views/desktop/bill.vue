@@ -610,9 +610,18 @@ onMounted(async () => {
 }
 
 .date-selector {
-  width: 180px;
+  display: flex; /* 使用flex布局 */
+  align-items: center; /* 垂直居中内容 */
 }
 
+.date-selector :deep(.el-input__wrapper) {
+  margin: 0; /* 移除可能的外边距 */
+}
+
+.date-selector :deep(.el-input) {
+  margin: 0; /* 移除可能的外边距 */
+  line-height: normal; /* 重置行高 */
+}
 /* ... 其他样式 ... */
 .summary-cards {
   display: flex;

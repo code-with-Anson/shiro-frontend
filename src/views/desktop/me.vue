@@ -28,25 +28,22 @@
         <div class="user-details-section">
           <h3 class="section-title">个人资料</h3>
 
-          <el-form label-position="top" class="user-form">
-            <el-form-item label="邮箱">
-              <div class="info-row clickable" @click="showEmailEdit">
-                <span>{{ user.email }}</span>
-              </div>
-            </el-form-item>
+          <div class="user-form">
+            <div class="info-item clickable" @click="showEmailEdit">
+              <span class="info-label">邮箱</span>
+              <span class="info-value">{{ user.email }}</span>
+            </div>
 
-            <el-form-item label="昵称">
-              <div class="info-row clickable" @click="showNameEdit">
-                <span>{{ user.name }}</span>
-              </div>
-            </el-form-item>
+            <div class="info-item clickable" @click="showNameEdit">
+              <span class="info-label">昵称</span>
+              <span class="info-value">{{ user.name }}</span>
+            </div>
 
-            <el-form-item label="性别">
-              <div class="info-row clickable" @click="showSexEdit">
-                <span>{{ user.sex || "未设置" }}</span>
-              </div>
-            </el-form-item>
-          </el-form>
+            <div class="info-item clickable" @click="showSexEdit">
+              <span class="info-label">性别</span>
+              <span class="info-value">{{ user.sex || "未设置" }}</span>
+            </div>
+          </div>
 
           <div class="actions-section">
             <el-button type="primary" @click="showPasswordEdit">
@@ -625,6 +622,9 @@ onMounted(async () => {
   margin: 0;
   max-width: 100%;
   overflow: hidden;
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
@@ -648,51 +648,53 @@ onMounted(async () => {
   margin-bottom: auto;
 }
 
-.user-form :deep(.el-form-item) {
-  margin-bottom: 12px; /* 减小表单项之间的间距 */
-}
-
-.info-row {
+.info-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
   position: relative;
+  font-size: 0.25rem;
 }
 
-.info-row.clickable {
-  cursor: pointer;
+.info-label {
+  width: 60px;
+  color: #606266;
+  font-weight: 500;
+  text-align: left;
 }
 
-.clickable {
+.info-value {
+  flex: 1;
+  color: #333;
+}
+
+.info-item.clickable {
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 4px;
   transition: background-color 0.2s;
-  position: relative;
+  padding: 12px;
+  margin: 0 -12px;
+  border-radius: 4px;
 }
 
-.clickable:hover {
+.info-item.clickable:hover {
   background-color: #f5f7fa;
 }
 
-.clickable::after {
+.info-item.clickable::after {
   content: "\270E";
   position: absolute;
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 12px; /* 减小图标大小 */
+  font-size: 12px;
   opacity: 0;
   transition: opacity 0.2s;
   color: #999;
 }
 
-.clickable:hover::after {
+.info-item.clickable:hover::after {
   opacity: 0.6;
-}
-
-.clickable span {
-  margin-right: 20px; /* 为铅笔图标留出空间，防止遮挡文字 */
 }
 
 .actions-section {
