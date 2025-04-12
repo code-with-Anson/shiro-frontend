@@ -485,7 +485,7 @@ onMounted(async () => {
 /* 弹出层标题 */
 .popup-title {
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 16px; /* 原来是 0.8rem */
   margin-bottom: 1rem;
 }
 
@@ -527,14 +527,14 @@ onMounted(async () => {
 
 .loading-text {
   margin-top: 16px;
-  font-size: 16px;
+  font-size: 16px; /* 保持 16px 大小 */
   font-weight: bold;
   color: #333;
 }
 
 .loading-tip {
   margin-top: 8px;
-  font-size: 14px;
+  font-size: 14px; /* 保持 14px 大小 */
   color: #666;
 }
 

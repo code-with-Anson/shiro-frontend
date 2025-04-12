@@ -14,16 +14,20 @@
         @click="changeMonthEditStatus"
       />
     </van-sticky>
-    <van-date-picker
-      v-if="showMonthEdit"
-      v-model="currentDate"
-      title="选择年月"
-      :min-date="minDate"
-      :max-date="maxDate"
-      :columns-type="columnsType"
-      @confirm="getMonthBill"
-      @cancel="hideMonthEdit"
-    />
+
+    <!-- 弹出层形式的日期选择器 -->
+    <van-popup v-model:show="showMonthEdit" position="bottom" round>
+      <van-date-picker
+        v-model="currentDate"
+        title="选择年月"
+        :min-date="minDate"
+        :max-date="maxDate"
+        :columns-type="columnsType"
+        @confirm="getMonthBill"
+        @cancel="hideMonthEdit"
+      />
+    </van-popup>
+
     <!-- 记录列表 -->
     <van-cell-group>
       <template v-for="(item, index) in bills" :key="item.id">
@@ -270,19 +274,19 @@ onMounted(async () => {
   padding-bottom: 9rem; /* 替换原来的 margin-bottom */
 }
 
-::v-deep(.van-cell__value.month-cost) {
-  font-size: 0.7rem;
+:deep(.van-cell__value.month-cost) {
+  font-size: 14px; /* 原来是 0.7rem */
   color: #39c5bb;
   font-weight: bold;
 }
 :deep(.van-cell__title.month-title) {
-  font-size: 0.8rem;
+  font-size: 16px; /* 原来是 0.8rem */
   font-weight: bold;
   color: #52a1e5;
 }
 
 :deep(.van-cell__label.month-earn) {
-  font-size: 0.7rem;
+  font-size: 14px; /* 原来是 0.7rem */
   font-weight: bold;
   color: #ff7875;
 }
@@ -312,7 +316,7 @@ onMounted(async () => {
 }
 
 .daily-amount {
-  font-size: 0.7rem;
+  font-size: 14px; /* 原来是 0.7rem */
   color: #666;
 }
 
@@ -327,7 +331,7 @@ onMounted(async () => {
 }
 #add-button {
   border-radius: 50%;
-  font-size: 1.2rem;
+  font-size: 20px; /* 原来是 1.2rem */
   width: 3rem;
   height: 3rem;
   position: fixed;

@@ -408,7 +408,7 @@ onMounted(async () => {
 /* 这个用于设置页面大标题的样式 */
 .page-title {
   margin-left: 2rem;
-  font-size: 1rem;
+  font-size: 16px; /* 原来是 1rem */
   color: #39c5bb;
 }
 
@@ -507,7 +507,7 @@ van-badge__wrapper van-icon van-icon-arrow van-cell__right-icon
 
 #add-button {
   border-radius: 50%;
-  font-size: 1.2rem;
+  font-size: 20px; /* 原来是 1.2rem */
   width: 3rem;
   height: 3rem;
   position: fixed;

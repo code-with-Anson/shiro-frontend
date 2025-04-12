@@ -496,11 +496,6 @@ const handleExport = async () => {
 
     // 调用API导出账单
     await exportMonthlyBillsToEmail(year, month);
-
-    ElMessage({
-      message: "导出请求已发送，请查看您的邮箱",
-      type: "success",
-    });
   } catch (error: any) {
     ElMessage({
       message: `导出失败: ${error.message}`,
@@ -710,7 +705,7 @@ onMounted(async () => {
 }
 
 .month-hint {
-  font-size: 12px;
+  font-size: 14px; /* 修改为 14px */
   color: #999;
   margin-top: 4px;
 }
@@ -735,7 +730,76 @@ onMounted(async () => {
 }
 
 .loading-tip {
-  font-size: 14px;
+  font-size: 14px; /* 已经是 14px，保持不变 */
   color: #666;
+}
+
+:deep(.el-dialog__header) {
+  padding: 8px 10px; /* 减小标题区域的内边距，特别是上下内边距 */
+  margin: 6px; /* 移除标题底部margin */
+  display: flex;
+  align-items: center; /* 确保标题垂直居中 */
+  height: 40px; /* 设置固定高度 */
+}
+
+/* 在样式最后添加以下代码 */
+
+/* 调整导出对话框中的表单布局 */
+:deep(.el-dialog__body) {
+  padding-bottom: 10px; /* 减少底部内边距 */
+  display: flex;
+  justify-content: center; /* 整体内容居中 */
+}
+
+:deep(.el-dialog__body form) {
+  width: 240px; /* 设置固定宽度以确保元素居中 */
+}
+
+:deep(.el-select),
+:deep(.el-input-number) {
+  width: 120px !important; /* 限制选择框宽度 */
+}
+
+:deep(.el-form-item__content) {
+  display: flex;
+  justify-content: center; /* 表单控件居中 */
+  flex-direction: column; /* 垂直排列元素 */
+  align-items: center; /* 子元素在交叉轴居中 */
+}
+
+:deep(.el-dialog__footer) {
+  padding-top: 10px; /* 减少底部按钮区域与表单之间的距离 */
+  margin-top: -10px; /* 通过负边距进一步减少空间 */
+}
+
+:deep(.el-form--default .el-form-item--default) {
+  margin-bottom: 18px; /* 减小表单项之间的间距 */
+  text-align: center; /* 表单项文本居中 */
+}
+
+/* 紧凑型表单布局 */
+:deep(.el-form-item:last-child) {
+  margin-bottom: 0; /* 最后一个表单项去掉底部边距 */
+}
+
+/* 调整提示文字居中显示 */
+.month-hint {
+  text-align: center;
+  width: 100%;
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* 调整表单标签对齐方式 */
+:deep(.el-export-form .el-form-item__label) {
+  text-align: center;
+}
+
+/* 确保按钮在dialog footer中居中 */
+:deep(.dialog-footer) {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
 }
 </style>

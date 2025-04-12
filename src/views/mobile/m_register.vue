@@ -209,7 +209,7 @@ const goToLogin = () => {
 }
 
 .app-title {
-  font-size: 2rem;
+  font-size: 24px; /* 原来是 2rem */
   font-weight: bold;
   background: linear-gradient(90deg, #52a1e5, #39c5bb);
   -webkit-background-clip: text;
@@ -219,7 +219,7 @@ const goToLogin = () => {
 
 .app-subtitle {
   color: #666;
-  font-size: 0.9rem;
+  font-size: 14px; /* 原来是 0.9rem */
   margin-top: 0.5rem;
 }
 
@@ -269,7 +269,7 @@ const goToLogin = () => {
 
 .register-btn {
   height: 3rem;
-  font-size: 1rem;
+  font-size: 16px; /* 原来是 1rem */
   font-weight: 600;
   background: linear-gradient(90deg, #52a1e5, #39c5bb);
   border: none;
@@ -278,7 +278,7 @@ const goToLogin = () => {
 }
 
 .login-btn {
-  font-size: 0.85rem;
+  font-size: 14px; /* 原来是 0.85rem */
   border-color: #52a1e5;
   color: #52a1e5;
   width: 100% !important;
@@ -292,7 +292,7 @@ const goToLogin = () => {
 .register-footer {
   text-align: center;
   color: #666;
-  font-size: 0.8rem;
+  font-size: 12px; /* 原来是 0.8rem */
   margin-top: auto;
   width: 100%;
 }

@@ -235,7 +235,7 @@ onMounted(async () => {
 
 .popup-title {
   text-align: center;
-  font-size: 1rem;
+  font-size: 16px; /* 原来是 1rem */
   font-weight: bold;
   margin-bottom: 1rem;
 }
@@ -251,7 +251,7 @@ onMounted(async () => {
 
 #add-button {
   border-radius: 50%;
-  font-size: 1.2rem;
+  font-size: 20px; /* 原来是 1.2rem */
   width: 3rem;
   height: 3rem;
   position: fixed;
