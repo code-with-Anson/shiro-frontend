@@ -781,6 +781,7 @@ const confirmDeleteCategory = (category: RenewCategory) => {
         ElMessage({
           message: "删除分类成功",
           type: "success",
+          plain: true,
           customClass: "small-message",
         });
       } catch (error: any) {
@@ -830,12 +831,6 @@ const submitCategoryForm = async () => {
     currentAction.value = "";
     newCategoryName.value = "";
     editingCategoryId.value = "";
-
-    ElMessage({
-      message: action === "add" ? "添加分类成功" : "编辑分类成功",
-      type: "success",
-      customClass: "small-message",
-    });
   } catch (error: any) {
     ElMessage({
       message: `${action === "add" ? "添加" : "编辑"}分类失败: ${

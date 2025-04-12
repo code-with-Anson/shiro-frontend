@@ -2,45 +2,45 @@
 
 /* Element Plus消息样式 */
 .el-message {
-  font-size: 0.2rem !important;
+  font-size: 0.3rem !important;
 }
 
 .el-message .el-message__content {
-  font-size: 0.2rem !important;
+  font-size: 0.3rem !important;
 }
 
 .el-message .el-message__icon {
-  font-size: 0.2rem !important;
+  font-size: 0.3rem !important;
 }
 
 /* 桌面端自定义消息类 */
 .small-message {
-  font-size: 0.2rem !important;
+  font-size: 0.3rem !important;
   min-width: 200px !important;
   padding: 8px 12px !important;
 }
 
 .small-message .el-message__content {
-  font-size: 0.2rem !important;
+  font-size: 0.3rem !important;
 }
 
 .small-message .el-message__icon {
-  font-size: 0.2rem !important;
+  font-size: 0.3rem !important;
 }
 
 /* Vant Toast消息样式 */
 :root {
-  --van-toast-font-size: 0.2rem !important;
-  --van-toast-text-font-size: 0.2rem !important;
+  --van-toast-font-size: 0.3rem !important;
+  --van-toast-text-font-size: 0.3rem !important;
 }
 
 .van-toast {
-  font-size: 0.2rem !important;
+  font-size: 0.3rem !important;
 }
 
 /* Element Plus确认对话框样式 */
 .el-message-box__message {
-  font-size: 0.2rem !important;
+  font-size: 0.3rem !important;
 }
 
 .el-message-box__title {
