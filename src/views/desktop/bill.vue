@@ -237,7 +237,7 @@ import {
 } from "@/api/bill";
 import { getAllCategories } from "@/api/category";
 import { ElMessage, ElMessageBox, ElConfigProvider } from "element-plus";
-import zhCn from "element-plus/dist/locale/zh-cn.mjs"; // 确保导入
+import zhCn from "element-plus/es/locale/lang/zh-cn"; // 使用提供类型声明的路径
 import { Plus } from "@element-plus/icons-vue";
 import { useRouter } from "vue-router";
 
