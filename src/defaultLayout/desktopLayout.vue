@@ -195,13 +195,28 @@ watch(
 }
 
 .main-content {
-  padding: 20px;
+  padding: 0 !important; /* 强制覆盖，从20px改为0 */
   background-color: #f5f7fa;
   min-height: calc(100vh - 60px);
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
 }
 
+/* 只有登录后的页面需要padding */
 .main-content.with-header {
   margin-top: 60px;
+  padding: 20px !important; /* 登录后的页面才有padding */
+}
+
+/* 特别针对登录、注册和找回密码页面 */
+:deep(.login-page),
+:deep(.register-page),
+:deep(.lost-page) {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 100vh !important;
+  width: 100vw !important;
 }
 
 /* 媒体查询 - 响应式调整 */

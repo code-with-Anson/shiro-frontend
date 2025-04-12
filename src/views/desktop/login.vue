@@ -158,6 +158,10 @@ const submitForm = () => {
   align-items: center;
   background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
   position: relative;
+  padding: 0; /* 添加此行，确保没有内边距 */
+  margin: 0; /* 确保没有外边距 */
+  box-sizing: border-box; /* 确保边框和内边距包含在宽度内 */
+  overflow: hidden; /* 避免产生滚动条 */
 }
 
 .login-card {

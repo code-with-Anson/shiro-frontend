@@ -15,6 +15,16 @@ const isMobile = useDeviceStore().isMobile;
 </script>
 
 <style>
+/* 添加到App.vue的全局样式中 */
+body,
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
 /* 定义全局小消息样式
 适用于所有页面 */
 .small-message {
@@ -70,5 +80,32 @@ const isMobile = useDeviceStore().isMobile;
 
 .van-dialog__header {
   font-size: 16px !important; /* 适当调整为 16px */
+}
+
+/* 添加这些样式来解决边缘空隙问题 */
+#app {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.el-container {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+/* 针对特定页面的全局样式 */
+.login-page,
+.lost-page,
+.register-page {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
 }
 </style>

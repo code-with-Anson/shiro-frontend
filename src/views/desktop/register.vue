@@ -193,6 +193,8 @@ const submitForm = () => {
   align-items: center;
   background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
   position: relative;
+  padding: 40px 0; /* 添加上下内边距 */
+  box-sizing: border-box; /* 确保内边距包含在高度内 */
 }
 
 .register-card {
@@ -200,8 +202,11 @@ const submitForm = () => {
   border-radius: 8px;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
   width: 400px;
-  padding: 40px;
+  padding: 30px; /* 减小内边距 */
   animation: fadeIn 0.5s ease;
+  max-height: calc(100vh - 120px); /* 限制最大高度 */
+  overflow-y: auto; /* 内容过多时允许滚动 */
+  margin-bottom: 70px; /* 为底部版权信息留出空间 */
 }
 
 .header-area {
@@ -275,6 +280,11 @@ const submitForm = () => {
   bottom: 20px;
   color: #666;
   font-size: 14px;
+  text-align: center;
+  width: 100%;
+  padding: 0 20px;
+  box-sizing: border-box;
+  z-index: 1; /* 确保版权信息在顶层 */
 }
 
 @keyframes fadeIn {
@@ -292,7 +302,44 @@ const submitForm = () => {
 @media (max-width: 480px) {
   .register-card {
     width: 90%;
-    padding: 30px;
+    padding: 20px; /* 在小屏幕上进一步减小内边距 */
+  }
+
+  .app-logo {
+    width: 60px; /* 减小logo大小 */
+    height: 60px;
+  }
+
+  .app-title {
+    font-size: 24px; /* 减小标题大小 */
+  }
+
+  /* 确保在小屏幕上有足够间距 */
+  .register-page {
+    padding: 20px 0;
+  }
+}
+
+/* 极小屏幕适配 */
+@media (max-height: 600px) {
+  .register-card {
+    padding: 15px;
+    margin-bottom: 50px;
+  }
+
+  .header-area {
+    margin-bottom: 15px;
+  }
+
+  .app-logo {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 10px;
+  }
+
+  .copyright {
+    bottom: 10px;
+    font-size: 12px;
   }
 }
 </style>
