@@ -724,4 +724,13 @@ onMounted(async () => {
   color: #409eff;
   font-weight: bold;
 }
+
+:deep(.el-dialog__header) {
+  padding: 8px 10px; /* 减小标题区域的内边距，特别是上下内边距 */
+  border-bottom: 1px solid #eee;
+  margin: 0; /* 移除标题底部margin */
+  display: flex;
+  align-items: center; /* 确保标题垂直居中 */
+  height: 40px; /* 设置固定高度 */
+}
 </style>

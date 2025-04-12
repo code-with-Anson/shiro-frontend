@@ -1044,6 +1044,59 @@ onMounted(async () => {
   color: #333;
 }
 
+/* 调整循环账单对话框样式 */
+:deep(.el-dialog) {
+  margin: 10vh auto 50px !important; /* 减小顶部margin从15vh到10vh */
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+:deep(.el-dialog__header) {
+  padding: 0px 10px; /* 减小标题区域的内边距，特别是上下内边距 */
+  border-bottom: 1px solid #eee;
+  margin: 0; /* 移除标题底部margin */
+  display: flex;
+  align-items: center; /* 确保标题垂直居中 */
+  height: 40px; /* 设置固定高度 */
+}
+
+:deep(.el-dialog__headerbtn) {
+  top: 8px; /* 调整关闭按钮位置与标题区域顶部内边距一致 */
+  right: 16px;
+  height: 24px; /* 控制关闭按钮高度 */
+  width: 24px; /* 控制关闭按钮宽度 */
+  font-size: 18px; /* 调整关闭图标大小 */
+  padding: 0; /* 移除内边距 */
+}
+
+:deep(.el-dialog__headerbtn .el-icon) {
+  line-height: 1; /* 调整图标行高 */
+}
+
+:deep(.el-dialog__body) {
+  padding: 16px; /* 减小内容区域内边距 */
+  max-height: 70vh; /* 限制对话框最大高度 */
+  overflow-y: auto; /* 内容过多时启用滚动 */
+}
+
+:deep(.el-dialog__footer) {
+  padding: 10px 16px; /* 减小底部按钮区域内边距 */
+  border-top: 1px solid #eee;
+}
+
+/* 优化表单内的间距 */
+:deep(.el-dialog) .el-form-item {
+  margin-bottom: 14px; /* 减小表单项之间的间距 */
+}
+
+:deep(.el-dialog) .dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px; /* 调整底部按钮间距 */
+}
+
+/* 分类管理对话框也应用相同样式 */
+
 @media (max-width: 1200px) {
   .category-bills {
     grid-template-columns: repeat(2, 1fr);
