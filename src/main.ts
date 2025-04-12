@@ -4,7 +4,8 @@ import "element-plus/dist/index.css";
 import "vant/lib/index.css";
 import { getRouterByDevice } from "./router/routerLoader";
 import { createPinia } from "pinia";
-
+// 导入全局消息样式
+import "./assets/css/message.css";
 // 初始化应用
 // 通过动态导入的方式实现路由的按需加载，适配不同的设备
 const initApp = async () => {
