@@ -451,12 +451,6 @@ const fetchBillData = async () => {
     // 重置展开行状态
     expandedRows.value = [];
   } catch (error: any) {
-    console.error("获取账单失败:", error);
-    ElMessage({
-      message: "获取账单失败: " + error.message,
-      type: "error",
-      customClass: "small-message",
-    });
   } finally {
     loading.value = false;
   }
