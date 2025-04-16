@@ -1,16 +1,35 @@
 import { createRouter, createWebHistory } from "vue-router";
-import m_bill from "../views/mobile/m_bill.vue";
 import { authGuard } from "@/utils/authGuard";
+import m_bill from "../views/mobile/m_bill.vue";
+import mBillStatistics from "@/views/mobile/m_bill_statistics.vue";
 
-// 这里是移动端路由，当检测到用户为桌面端就会应用这个路由
+// 这里是移动端路由，当检测到用户为移动端就会应用这个路由
 // 通过动态导入的方式实现路由的按需加载，适配不同的设备
 const mobileRouter = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      // 将根路径指向账单管理页面而非统计页
       path: "/",
+      redirect: "/bill-management",
+    },
+    {
+      path: "/bill-management",
       name: "m_bill",
       component: m_bill,
+      meta: {
+        requiresAuth: true,
+        title: "账单管理",
+      },
+    },
+    {
+      path: "/statistics",
+      name: "mBillStatistics",
+      component: mBillStatistics,
+      meta: {
+        requiresAuth: true,
+        title: "账单统计",
+      },
     },
     {
       path: "/renew-bill",

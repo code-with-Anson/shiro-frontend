@@ -16,6 +16,14 @@
               class="nav-item"
               :class="{ active: activeRoute === '/' }"
             >
+              <el-icon><data-analysis /></el-icon>
+              <span>账单统计</span>
+            </router-link>
+            <router-link
+              to="/bill-management"
+              class="nav-item"
+              :class="{ active: activeRoute === '/bill-management' }"
+            >
               <el-icon><document /></el-icon>
               <span>我的账单</span>
             </router-link>
@@ -55,7 +63,12 @@ import { ref, computed, onMounted, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/pinia/useAuthStore";
 import { ElMessageBox, ElMessage } from "element-plus";
-import { Document, RefreshRight, User } from "@element-plus/icons-vue";
+import {
+  Document,
+  RefreshRight,
+  User,
+  DataAnalysis,
+} from "@element-plus/icons-vue";
 
 const authStore = useAuthStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);

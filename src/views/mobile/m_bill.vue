@@ -1,4 +1,11 @@
 <template>
+  <!-- 修改账单页面的导航栏，移除左侧返回按钮 -->
+  <van-nav-bar title="我的账单">
+    <template #right>
+      <van-icon name="chart-trending-o" size="18" @click="goToStatistics" />
+    </template>
+  </van-nav-bar>
+
   <div class="m_bills">
     <!-- Sticky 固定顶部 -->
     <van-sticky>
@@ -258,6 +265,12 @@ const navigateToBillDetail = (bill: Bill) => {
 const toAddNewBill = () => {
   router.push("/bill-add");
 };
+
+// 更新统计页面导航方法
+const goToStatistics = () => {
+  router.push("/statistics");
+};
+
 onMounted(async () => {
   console.log(currentMonth.value, currentYear.value);
   try {

@@ -2,7 +2,10 @@
   <div class="page">
     <router-view class="content" />
     <van-tabbar class="tabbar" v-if="isAuthenticated" v-model="active">
-      <van-tabbar-item to="/" icon="gold-coin-o">账单</van-tabbar-item>
+      <!-- 将"账单"指向常规账单管理页面 -->
+      <van-tabbar-item to="/bill-management" icon="gold-coin-o"
+        >账单</van-tabbar-item
+      >
       <van-tabbar-item to="/renew-bill" icon="gem-o">循环</van-tabbar-item>
       <van-tabbar-item to="/me" icon="user-circle-o">我的</van-tabbar-item>
     </van-tabbar>
