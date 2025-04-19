@@ -344,7 +344,6 @@ const initTrendChart = () => {
       {
         name: "收入",
         type: "line",
-        stack: "总量",
         smooth: true,
         emphasis: {
           focus: "series",
@@ -357,7 +356,6 @@ const initTrendChart = () => {
       {
         name: "支出",
         type: "line",
-        stack: "总量",
         smooth: true,
         emphasis: {
           focus: "series",

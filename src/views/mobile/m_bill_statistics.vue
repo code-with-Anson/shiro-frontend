@@ -386,7 +386,6 @@ const initTrendChart = () => {
       {
         name: "收入",
         type: "line",
-        stack: "总量",
         smooth: true,
         itemStyle: {
           color: "#67C23A",
@@ -396,7 +395,6 @@ const initTrendChart = () => {
       {
         name: "支出",
         type: "line",
-        stack: "总量",
         smooth: true,
         itemStyle: {
           color: "#F56C6C",
