@@ -36,6 +36,14 @@
               <span>循环账单</span>
             </router-link>
             <router-link
+              to="/ai_chat"
+              class="nav-item"
+              :class="{ active: activeRoute === '/ai_chat' }"
+            >
+              <el-icon><Sugar /></el-icon>
+              <span>AI畅聊</span>
+            </router-link>
+            <router-link
               to="/me"
               class="nav-item"
               :class="{ active: activeRoute === '/me' }"
@@ -68,6 +76,7 @@ import {
   RefreshRight,
   User,
   DataAnalysis,
+  Sugar,
 } from "@element-plus/icons-vue";
 
 const authStore = useAuthStore();

@@ -27,6 +27,15 @@ const desktopRouter = createRouter({
       },
     },
     {
+      path: "/ai_chat",
+      name: "ai_chat",
+      component: () => import("@/views/desktop/ai_chat.vue"),
+      meta: {
+        requiresAuth: true,
+        title: "账单管理",
+      },
+    },
+    {
       path: "/renew_bill",
       name: "renew_bill",
       // route level code-splitting
