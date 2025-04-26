@@ -680,7 +680,7 @@ const handleYearChange = async () => {
 const fetchWeekStatistics = async () => {
   try {
     weekData.value = await getWeekStatistics();
-    // 确保图表已初始化
+    // 使用 nextTick 确保 DOM 更新后再更新图表
     await nextTick();
     updateTrendChart();
     updatePieCharts();
@@ -701,7 +701,7 @@ const fetchMonthStatistics = async (
 ) => {
   try {
     monthData.value = await getMonthStatistics(year, month);
-    // 确保图表已初始化
+    // 使用 nextTick 确保 DOM 更新后再更新图表
     await nextTick();
     updateTrendChart();
     updatePieCharts();
@@ -719,7 +719,7 @@ const fetchMonthStatistics = async (
 const fetchYearStatistics = async (year = new Date().getFullYear()) => {
   try {
     yearData.value = await getYearStatistics(year);
-    // 确保图表已初始化
+    // 使用 nextTick 确保 DOM 更新后再更新图表
     await nextTick();
     updateTrendChart();
     updatePieCharts();
@@ -742,12 +742,16 @@ const resizeCharts = () => {
 
 // 生命周期钩子
 onMounted(async () => {
+  // 确保 DOM 准备好后再初始化图表
+  await nextTick();
   initTrendChart();
   initPieCharts();
+
   window.addEventListener("resize", resizeCharts);
 
   loading.value = true;
   try {
+    // 初始加载周数据
     await fetchWeekStatistics();
   } catch (error) {
     console.error("初始化数据失败:", error);
