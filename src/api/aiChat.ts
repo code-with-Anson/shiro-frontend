@@ -1,5 +1,5 @@
 import axiosInstance from "@/utils/axios";
-import { ElMessage } from "element-plus";
+import type { AxiosProgressEvent } from "axios";
 
 /**
  * 发送聊天消息并获取流式响应
@@ -10,38 +10,117 @@ export async function sendChatMessage(
   message: string,
   onChunk: (chunk: string) => void
 ): Promise<void> {
+  let accumulatedResponse = "";
+
   try {
-    // 发起流式请求
+    // 使用axios实例发起请求，并设置120秒超时
+    const response = await axiosInstance.get(
+      `/ai/flux-ChatClient/OpenAi-momoi`,
+      {
+        params: { message },
+        responseType: "text",
+        // 设置超时时间为120秒
+        timeout: 120000,
+        // 使用onDownloadProgress处理流式响应
+        onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
+          // 获取当前完整的响应文本
+          const responseText = progressEvent.event?.target?.response || "";
+
+          // 如果有新内容，则提取新内容
+          if (
+            responseText &&
+            responseText.length > accumulatedResponse.length
+          ) {
+            const newChunk = responseText.substring(accumulatedResponse.length);
+            accumulatedResponse = responseText;
+
+            if (newChunk) {
+              onChunk(newChunk);
+            }
+          }
+        },
+        // 确保不会缓存请求
+        headers: {
+          "Cache-Control": "no-cache",
+          Accept: "text/html;charset=UTF-8",
+        },
+      }
+    );
+
+    // 确保最终完整响应被处理
+    if (response.status !== 200) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  } catch (error: any) {
+    if (error.response?.data) {
+      throw new Error(error.response.data.msg || "请求失败");
+    } else if (error.request) {
+      throw new Error("网络错误，请稍后重试");
+    } else {
+      throw new Error(error.message || "请求失败，请稍后重试");
+    }
+  }
+}
+
+/**
+ * 替代方案：使用fetch API处理流式响应
+ * 如果上面的方法不能正常工作，可以考虑使用此方法
+ */
+export async function sendChatMessageFetch(
+  message: string,
+  onChunk: (chunk: string) => void
+): Promise<void> {
+  try {
+    const baseUrl =
+      import.meta.env.VITE_API_BASE_URL || axiosInstance.defaults.baseURL;
+    const token = localStorage.getItem("token") || "";
+
+    const controller = new AbortController();
+    // 设置120秒超时
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
+
     const response = await fetch(
-      `${
-        import.meta.env.VITE_API_BASE_URL || "http://localhost:3952"
-      }/ai/flux-ChatClient/OpenAi-momoi?message=${encodeURIComponent(message)}`,
+      `${baseUrl}/ai/flux-ChatClient/OpenAi-momoi?message=${encodeURIComponent(
+        message
+      )}`,
       {
         method: "GET",
         headers: {
           Accept: "text/html;charset=UTF-8",
-          Authorization: localStorage.getItem("token") || "",
+          Authorization: token,
+          "Cache-Control": "no-cache",
         },
+        signal: controller.signal,
       }
     );
+
+    // 清除超时
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error("无法获取响应数据流");
+    }
 
+    const decoder = new TextDecoder();
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
 
       const chunk = decoder.decode(value, { stream: true });
-      onChunk(chunk);
+      if (chunk) {
+        onChunk(chunk);
+      }
     }
   } catch (error: any) {
-    if (error.response?.data) {
-      throw new Error(error.response.data.msg);
+    if (error.name === "AbortError") {
+      throw new Error("请求超时，请稍后重试");
+    } else if (error.response?.data) {
+      throw new Error(error.response.data.msg || "请求失败");
     } else if (error.request) {
       throw new Error("网络错误，请稍后重试");
     } else {

@@ -1,5 +1,6 @@
 <template>
   <div class="chat-container">
+    <!-- 聊天头部保持不变 -->
     <div class="chat-header">
       <h2>爱丽丝chat</h2>
       <el-button
@@ -26,10 +27,27 @@
           />
         </div>
         <div class="message-content">
-          <div class="message-text">{{ msg.content }}</div>
+          <div class="message-text">
+            <!-- 如果是AI消息且内容为空，显示加载动画 -->
+            <template
+              v-if="msg.type === 'ai' && msg.content === '' && isLoading"
+            >
+              <div class="loading-container">
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+              </div>
+            </template>
+            <template v-else>
+              {{ msg.content }}
+            </template>
+          </div>
           <div class="message-time" v-if="msg.time">{{ msg.time }}</div>
         </div>
       </div>
+
+      <!-- 移除这个单独的加载指示器 -->
+      <!-- 
       <div v-if="isLoading" class="message ai">
         <div class="avatar-container">
           <el-avatar :size="44" :icon="Assistant" />
@@ -42,8 +60,10 @@
           </div>
         </div>
       </div>
+      -->
     </div>
 
+    <!-- 输入区域保持不变 -->
     <div class="input-area">
       <el-input
         v-model="userInput"
@@ -69,6 +89,7 @@
 </template>
 
 <script setup lang="ts">
+// 脚本部分保持不变
 import { ref, onMounted, nextTick, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { Delete, User, Promotion } from "@element-plus/icons-vue";
