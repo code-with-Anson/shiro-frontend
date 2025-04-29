@@ -1,107 +1,136 @@
 <template>
-  <div class="chat-container">
-    <!-- 聊天头部保持不变 -->
-    <div class="chat-header">
-      <h2>爱丽丝chat</h2>
-      <el-button
-        type="primary"
-        size="default"
-        plain
-        @click="clearMessages"
-        :icon="Delete"
-      >
-        清空对话
-      </el-button>
-    </div>
+  <div class="chat-layout">
+    <!-- 左侧历史对话列表 -->
+    <div class="chat-sidebar">
+      <div class="sidebar-header">
+        <h2>历史对话</h2>
+        <el-button
+          type="primary"
+          size="small"
+          plain
+          @click="startNewChat"
+          :icon="Plus"
+        >
+          新对话
+        </el-button>
+      </div>
 
-    <div class="message-area" ref="messageArea">
-      <div
-        v-for="(msg, index) in messages"
-        :key="index"
-        :class="['message', msg.type]"
-      >
-        <div class="avatar-container">
-          <!-- 使用用户真实头像或默认头像 -->
-          <el-avatar
-            :size="44"
-            v-if="msg.type === 'user'"
-            :src="userAvatar || ''"
-            :icon="!userAvatar ? User : undefined"
-          />
-          <!-- AI头像使用public文件夹中的alice图片 -->
-          <el-avatar :size="44" v-else :src="'/alice.jpg'" />
-        </div>
-        <div class="message-content">
-          <div class="message-text">
-            <!-- 如果是AI消息且内容为空，显示加载动画 -->
-            <template
-              v-if="msg.type === 'ai' && msg.content === '' && isLoading"
-            >
-              <div class="loading-container">
-                <span class="loading-dot"></span>
-                <span class="loading-dot"></span>
-                <span class="loading-dot"></span>
-              </div>
-            </template>
-            <template v-else>
-              <!-- 用户消息直接显示文本 -->
-              <template v-if="msg.type === 'user' || msg.type === 'system'">
-                {{ msg.content }}
-              </template>
-              <!-- AI消息使用markdown解析 -->
-              <div
-                v-else
-                class="markdown-body"
-                v-html="renderMarkdown(msg.content)"
-              ></div>
-            </template>
-          </div>
-          <div class="message-time" v-if="msg.time">{{ msg.time }}</div>
+      <div class="history-list">
+        <div
+          v-for="(chat, idx) in chatHistory"
+          :key="idx"
+          :class="['history-item', { active: chat.active }]"
+          @click="switchChat(idx)"
+        >
+          <span class="history-title">{{ chat.title }}</span>
+          <span class="history-time">{{ chat.time }}</span>
         </div>
       </div>
     </div>
 
-    <!-- 输入区域保持不变 -->
-    <div class="input-area">
-      <el-input
-        v-model="userInput"
-        type="textarea"
-        :rows="4"
-        placeholder="请输入您的问题..."
-        :disabled="isLoading"
-        @keyup.enter.ctrl="sendMessage"
-        resize="none"
-      />
-      <el-button
-        type="primary"
-        @click="sendMessage"
-        :loading="isLoading"
-        :icon="Promotion"
-        size="large"
-      >
-        发送
-      </el-button>
+    <!-- 右侧聊天区域 -->
+    <div class="chat-main">
+      <div class="message-container">
+        <div class="message-area" ref="messageArea">
+          <div
+            v-for="(msg, index) in messages"
+            :key="index"
+            :class="['message', msg.type]"
+          >
+            <div class="avatar-container">
+              <el-avatar
+                :size="40"
+                v-if="msg.type === 'user'"
+                :src="userAvatar || ''"
+                :icon="!userAvatar ? User : undefined"
+              />
+              <el-avatar :size="40" v-else :src="'/alice.jpg'" />
+            </div>
+            <div class="message-content">
+              <div class="message-text">
+                <template
+                  v-if="msg.type === 'ai' && msg.content === '' && isLoading"
+                >
+                  <div class="loading-container">
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                  </div>
+                </template>
+                <template v-else>
+                  <template v-if="msg.type === 'user' || msg.type === 'system'">
+                    {{ msg.content }}
+                  </template>
+                  <div
+                    v-else
+                    class="markdown-body"
+                    v-html="renderMarkdown(msg.content)"
+                  ></div>
+                </template>
+              </div>
+              <div class="message-time" v-if="msg.time">{{ msg.time }}</div>
+            </div>
+          </div>
+
+          <!-- 滚动到底部按钮 -->
+          <transition name="fade">
+            <div
+              v-if="showScrollButton && !isScrolling"
+              class="scroll-bottom-button"
+              @click="handleScrollToBottom"
+            >
+              <el-icon><ArrowDown /></el-icon>
+            </div>
+          </transition>
+        </div>
+
+        <div class="input-area">
+          <el-input
+            v-model="userInput"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入您的问题..."
+            :disabled="isLoading"
+            @keyup.enter.ctrl="sendMessage"
+            resize="none"
+          />
+          <el-button
+            type="primary"
+            @click="sendMessage"
+            :loading="isLoading"
+            :icon="Promotion"
+            size="large"
+          >
+            发送
+          </el-button>
+        </div>
+        <div class="tips">按Ctrl+Enter快速发送</div>
+      </div>
     </div>
-    <div class="tips">按Ctrl+Enter快速发送</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from "vue";
+import { ref, onMounted, nextTick, onUnmounted } from "vue";
 import { ElMessage } from "element-plus";
-import { Delete, User, Promotion } from "@element-plus/icons-vue";
+import {
+  Delete,
+  User,
+  Promotion,
+  ArrowDown,
+  Plus,
+} from "@element-plus/icons-vue";
 import { sendChatMessage } from "@/api/aiChat";
-import { getUserInfos } from "@/api/user"; // 导入获取用户信息的API
-import MarkdownIt from "markdown-it"; // 导入markdown-it
+import { getUserInfos } from "@/api/user";
+import MarkdownIt from "markdown-it";
 
 // 创建markdown-it实例并配置
 const md = new MarkdownIt({
-  html: true, // 允许HTML标签
-  breaks: true, // 将\n转换为<br>
-  linkify: true, // 自动将URL转换为链接
-  typographer: true, // 启用一些语言中立的替换和引号美化
+  html: true,
+  breaks: true,
+  linkify: true,
+  typographer: true,
   highlight: function (str, lang) {
-    // 可以在这里添加代码高亮逻辑
     return `<pre class="code-block"><code class="${lang}">${str}</code></pre>`;
   },
 });
@@ -118,11 +147,84 @@ interface Message {
   time?: string;
 }
 
+// 历史对话接口
+interface ChatHistoryItem {
+  id: number;
+  title: string;
+  time: string;
+  active: boolean;
+}
+
 const messages = ref<Message[]>([]);
 const userInput = ref("");
 const isLoading = ref(false);
 const messageArea = ref<HTMLElement | null>(null);
-const userAvatar = ref<string>(""); // 用户头像URL
+const userAvatar = ref<string>("");
+const userScrolling = ref(false);
+const showScrollButton = ref(false);
+const isScrolling = ref(false); // 防止滚动过程中按钮闪烁
+
+// 模拟的历史对话数据
+const chatHistory = ref<ChatHistoryItem[]>([
+  { id: 1, title: "Vue3组件开发", time: "今天 14:35", active: true },
+  { id: 2, title: "CSS布局问题", time: "昨天 10:22", active: false },
+  { id: 3, title: "React vs Vue", time: "3月15日", active: false },
+  { id: 4, title: "TypeScript类型系统", time: "3月10日", active: false },
+  { id: 5, title: "后端API设计", time: "3月5日", active: false },
+]);
+
+// 切换对话
+const switchChat = (index: number) => {
+  chatHistory.value.forEach((chat, idx) => {
+    chat.active = idx === index;
+  });
+  // 这里可以添加加载对应对话内容的逻辑
+
+  // 模拟切换对话，清空当前消息
+  messages.value = [];
+
+  // 添加模拟的初始消息
+  messages.value.push({
+    type: "ai",
+    content: `您正在查看"${chatHistory.value[index].title}"的对话。请继续您的问题...`,
+    time: getCurrentTime(),
+  });
+
+  // 滚动到底部
+  scrollToBottom(true);
+};
+
+// 新建对话
+const startNewChat = () => {
+  // 重置所有active状态
+  chatHistory.value.forEach((chat) => {
+    chat.active = false;
+  });
+
+  // 添加新对话
+  const newChat = {
+    id: Date.now(),
+    title: "新对话",
+    time: getCurrentTime(),
+    active: true,
+  };
+
+  // 添加到顶部
+  chatHistory.value.unshift(newChat);
+
+  // 清空当前对话
+  messages.value = [];
+
+  // 添加欢迎消息
+  messages.value.push({
+    type: "ai",
+    content: "您好！有什么我可以帮助您的吗？",
+    time: getCurrentTime(),
+  });
+
+  // 滚动到底部
+  scrollToBottom(true);
+};
 
 // 获取格式化的当前时间
 const getCurrentTime = (): string => {
@@ -130,29 +232,51 @@ const getCurrentTime = (): string => {
   return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-// 滚动到底部
-const scrollToBottom = async () => {
+// 修改：滚动到底部的函数
+const scrollToBottom = async (forceScroll = false) => {
   await nextTick();
-  if (messageArea.value) {
+  if (messageArea.value && (forceScroll || !userScrolling.value)) {
+    isScrolling.value = true; // 标记正在滚动，防止按钮闪烁
+
     messageArea.value.scrollTop = messageArea.value.scrollHeight;
+
+    // 滚动动画完成后重置标记
+    setTimeout(() => {
+      isScrolling.value = false;
+    }, 300); // 300ms与CSS中的滚动动画时间匹配
   }
 };
 
-watch(messages, scrollToBottom, { deep: true });
-
-// 清空对话
-const clearMessages = () => {
-  messages.value = [
-    {
-      type: "ai",
-      content:
-        "你好！我是爱丽丝，有什么可以帮助你的吗？\n\n你可以尝试向我提问，例如：\n\n* 前端开发技巧\n* 如何优化Vue应用\n* 解释一段代码",
-      time: getCurrentTime(),
-    },
-  ];
+// 按钮点击事件：强制滚动到底部并启用自动滚动
+const handleScrollToBottom = () => {
+  userScrolling.value = false; // 重置滚动状态
+  scrollToBottom(true); // 强制滚动到底部
+  showScrollButton.value = false; // 隐藏按钮
 };
 
-// 发送消息并处理流式响应
+// 处理用户滚动事件
+const handleScroll = () => {
+  if (!messageArea.value || isScrolling.value) return;
+
+  // 检测是否到达底部
+  const isAtBottom =
+    Math.abs(
+      messageArea.value.scrollHeight -
+        messageArea.value.scrollTop -
+        messageArea.value.clientHeight
+    ) < 10;
+
+  // 如果不在底部，显示滚动按钮
+  if (!isAtBottom) {
+    userScrolling.value = true;
+    showScrollButton.value = true;
+  } else {
+    userScrolling.value = false;
+    showScrollButton.value = false;
+  }
+};
+
+// 发送消息
 const sendMessage = async () => {
   if (!userInput.value.trim() || isLoading.value) return;
 
@@ -184,6 +308,17 @@ const sendMessage = async () => {
       messages.value[aiMessageIndex].content = aiResponse;
       scrollToBottom();
     });
+
+    // 如果是第一条消息，更新对话标题
+    if (messages.value.length <= 3) {
+      const activeChat = chatHistory.value.find((chat) => chat.active);
+      if (activeChat && activeChat.title === "新对话") {
+        activeChat.title =
+          userMessage.length > 15
+            ? userMessage.substring(0, 15) + "..."
+            : userMessage;
+      }
+    }
   } catch (error: any) {
     console.error("聊天请求失败:", error);
     ElMessage({
@@ -200,6 +335,16 @@ const sendMessage = async () => {
   }
 };
 
+// 清空对话
+const clearMessages = () => {
+  messages.value = [];
+  messages.value.push({
+    type: "ai",
+    content: "对话已清空，有什么我可以帮助您的吗？",
+    time: getCurrentTime(),
+  });
+};
+
 // 获取用户信息
 const fetchUserInfo = async () => {
   try {
@@ -212,9 +357,9 @@ const fetchUserInfo = async () => {
   }
 };
 
-// 加载初始欢迎消息和获取用户信息
+// 组件挂载
 onMounted(async () => {
-  // 添加欢迎消息，包含一些Markdown格式内容
+  // 添加欢迎消息
   messages.value.push({
     type: "ai",
     content:
@@ -224,55 +369,119 @@ onMounted(async () => {
 
   // 获取用户信息和头像
   await fetchUserInfo();
+
+  // 添加滚动事件监听
+  if (messageArea.value) {
+    messageArea.value.addEventListener("scroll", handleScroll);
+  }
+});
+
+// 组件卸载时移除事件监听
+onUnmounted(() => {
+  if (messageArea.value) {
+    messageArea.value.removeEventListener("scroll", handleScroll);
+  }
 });
 </script>
 
 <style scoped>
-/* 保留原有样式 */
-.chat-container {
+/* 全屏布局 */
+.chat-layout {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
+/* 左侧边栏样式 */
+.chat-sidebar {
+  width: 280px;
+  background-color: #f0f2f5;
+  border-right: 1px solid #ddd;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 140px);
-  max-width: 1200px;
-  margin: 0 auto;
-  background-color: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
   overflow: hidden;
 }
 
-.chat-header {
-  padding: 20px 28px;
-  background: linear-gradient(120deg, #52a1e5 0%, #39c5bb 100%);
-  color: white;
+.sidebar-header {
+  padding: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #eaeaea;
+  border-bottom: 1px solid #ddd;
 }
 
-.chat-header h2 {
+.sidebar-header h2 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 18px;
+  color: #333;
 }
 
-.chat-header .el-button {
-  font-size: 15px;
-  padding: 9px 16px;
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.history-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover {
+  background-color: #e6e8eb;
+}
+
+.history-item.active {
+  background-color: #e6f7ff;
+  border-left-color: #1890ff;
+}
+
+.history-title {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-time {
+  font-size: 12px;
+  color: #999;
+}
+
+/* 右侧主聊天区域 */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+.message-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .message-area {
   flex: 1;
   overflow-y: auto;
-  padding: 32px;
+  padding: 24px 28px;
   background-color: #f9fafc;
+  scroll-behavior: smooth;
 }
 
+/* 消息样式 */
 .message {
-  margin-bottom: 26px;
+  margin-bottom: 20px;
   display: flex;
-  gap: 16px;
+  gap: 12px;
   animation: fadeIn 0.3s ease;
 }
 
@@ -287,17 +496,17 @@ onMounted(async () => {
 }
 
 .message-text {
-  padding: 16px 20px;
+  padding: 12px 16px;
   border-radius: 16px;
   word-break: break-word;
-  line-height: 1.6;
-  font-size: 16px;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+  line-height: 1.5;
+  font-size: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .message-time {
-  margin-top: 6px;
-  font-size: 13px;
+  margin-top: 3px;
+  font-size: 12px;
   color: #999;
   align-self: flex-end;
 }
@@ -326,10 +535,11 @@ onMounted(async () => {
   font-size: 15px;
 }
 
+/* 输入区域样式 */
 .input-area {
   display: flex;
-  gap: 16px;
-  padding: 24px 28px;
+  gap: 12px;
+  padding: 16px 24px;
   background-color: #ffffff;
   border-top: 1px solid #eaeaea;
   align-items: flex-start;
@@ -339,7 +549,7 @@ onMounted(async () => {
   flex: 1;
 }
 
-.input-area .el-input :deep(.el-textarea__inner) {
+.input-area .el-textarea :deep(.el-textarea__inner) {
   font-size: 16px;
   padding: 12px 16px;
   line-height: 1.6;
@@ -355,11 +565,12 @@ onMounted(async () => {
 
 .tips {
   text-align: center;
-  padding-bottom: 14px;
+  padding: 8px 0 14px;
   color: #999;
   font-size: 14px;
 }
 
+/* 加载动画 */
 .loading-container {
   display: flex;
   gap: 6px;
@@ -369,8 +580,8 @@ onMounted(async () => {
 }
 
 .loading-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   background-color: #666;
   border-radius: 50%;
   display: inline-block;
@@ -385,6 +596,35 @@ onMounted(async () => {
   animation-delay: -0.16s;
 }
 
+/* 滚动到底部按钮样式 */
+.scroll-bottom-button {
+  position: fixed;
+  bottom: 100px;
+  right: 30px;
+  width: 40px;
+  height: 40px;
+  background-color: #007bff;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 100;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.scroll-bottom-button:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+}
+
+.scroll-bottom-button .el-icon {
+  font-size: 20px;
+}
+
+/* 动画 */
 @keyframes bounce {
   0%,
   80%,
@@ -407,153 +647,56 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 1400px) {
-  .chat-container {
-    max-width: 1000px;
-  }
-
-  .message-content {
-    max-width: 700px;
-  }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
+/* 滚动条样式 */
+.message-area::-webkit-scrollbar,
+.history-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.message-area::-webkit-scrollbar-thumb,
+.history-list::-webkit-scrollbar-thumb {
+  background-color: #c1c1c1;
+  border-radius: 3px;
+}
+
+.message-area::-webkit-scrollbar-thumb:hover,
+.history-list::-webkit-scrollbar-thumb:hover {
+  background-color: #a8a8a8;
+}
+
+.message-area::-webkit-scrollbar-track,
+.history-list::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
+}
+
+/* 响应式适配 */
 @media (max-width: 768px) {
-  .chat-container {
-    height: calc(100vh - 100px);
-    border-radius: 0;
-    max-width: 100%;
+  .chat-sidebar {
+    width: 240px;
+  }
+
+  .scroll-bottom-button {
+    bottom: 80px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
   }
 
   .message-area {
     padding: 20px;
   }
 
-  .message-content {
-    max-width: 75%;
-  }
-
-  .chat-header {
-    padding: 16px 20px;
-  }
-
-  .chat-header h2 {
-    font-size: 20px;
-  }
-
   .input-area {
-    padding: 16px 20px;
+    padding: 12px 20px;
   }
-}
-
-/* 添加Markdown样式 */
-.markdown-body {
-  line-height: 1.6;
-  word-break: break-word;
-}
-
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3,
-.markdown-body h4,
-.markdown-body h5,
-.markdown-body h6 {
-  margin-top: 16px;
-  margin-bottom: 8px;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.markdown-body h1 {
-  font-size: 1.5em;
-  margin-top: 0;
-}
-
-.markdown-body h2 {
-  font-size: 1.3em;
-}
-
-.markdown-body h3 {
-  font-size: 1.1em;
-}
-
-.markdown-body p {
-  margin-top: 0;
-  margin-bottom: 16px;
-}
-
-.markdown-body ul,
-.markdown-body ol {
-  padding-left: 20px;
-  margin-bottom: 16px;
-}
-
-.markdown-body li {
-  margin-bottom: 4px;
-}
-
-.markdown-body pre {
-  margin: 16px 0;
-  padding: 12px 16px;
-  overflow: auto;
-  background-color: #f6f8fa;
-  border-radius: 6px;
-}
-
-.markdown-body code {
-  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-  padding: 2px 4px;
-  font-size: 0.9em;
-  background-color: rgba(27, 31, 35, 0.05);
-  border-radius: 3px;
-}
-
-.markdown-body pre code {
-  padding: 0;
-  background-color: transparent;
-  white-space: pre;
-}
-
-.markdown-body blockquote {
-  border-left: 4px solid #dfe2e5;
-  color: #6a737d;
-  padding: 0 16px;
-  margin-left: 0;
-  margin-right: 0;
-}
-
-.markdown-body table {
-  border-collapse: collapse;
-  margin-bottom: 16px;
-  width: 100%;
-}
-
-.markdown-body table th,
-.markdown-body table td {
-  padding: 6px 13px;
-  border: 1px solid #dfe2e5;
-}
-
-.markdown-body table th {
-  background-color: #f6f8fa;
-}
-
-.markdown-body a {
-  color: #0366d6;
-  text-decoration: none;
-}
-
-.markdown-body a:hover {
-  text-decoration: underline;
-}
-
-.markdown-body img {
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-/* 确保AI消息中的markdown内容显示正确 */
-.ai .message-text .markdown-body {
-  color: #333;
 }
 </style>

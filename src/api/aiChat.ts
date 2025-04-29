@@ -13,11 +13,11 @@ export async function sendChatMessage(
   let accumulatedResponse = "";
 
   try {
-    // 使用axios实例发起请求，并设置120秒超时
-    const response = await axiosInstance.get(
+    // 使用axios实例发起POST请求，并设置120秒超时
+    const response = await axiosInstance.post(
       `/ai/flux-ChatClient/OpenAi-momoi`,
+      message,
       {
-        params: { message },
         responseType: "text",
         // 设置超时时间为120秒
         timeout: 120000,
@@ -42,6 +42,7 @@ export async function sendChatMessage(
         // 确保不会缓存请求
         headers: {
           "Cache-Control": "no-cache",
+          "Content-Type": "text/plain",
           Accept: "text/html;charset=UTF-8",
         },
       }
@@ -79,20 +80,17 @@ export async function sendChatMessageFetch(
     // 设置120秒超时
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
-    const response = await fetch(
-      `${baseUrl}/ai/flux-ChatClient/OpenAi-momoi?message=${encodeURIComponent(
-        message
-      )}`,
-      {
-        method: "GET",
-        headers: {
-          Accept: "text/html;charset=UTF-8",
-          Authorization: token,
-          "Cache-Control": "no-cache",
-        },
-        signal: controller.signal,
-      }
-    );
+    const response = await fetch(`${baseUrl}/ai/flux-ChatClient/OpenAi-momoi`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain",
+        Accept: "text/html;charset=UTF-8",
+        Authorization: token,
+        "Cache-Control": "no-cache",
+      },
+      body: message, // 直接发送消息内容作为请求体
+      signal: controller.signal,
+    });
 
     // 清除超时
     clearTimeout(timeoutId);
