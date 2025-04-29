@@ -44,7 +44,16 @@
               </div>
             </template>
             <template v-else>
-              {{ msg.content }}
+              <!-- 用户消息直接显示文本 -->
+              <template v-if="msg.type === 'user' || msg.type === 'system'">
+                {{ msg.content }}
+              </template>
+              <!-- AI消息使用markdown解析 -->
+              <div
+                v-else
+                class="markdown-body"
+                v-html="renderMarkdown(msg.content)"
+              ></div>
             </template>
           </div>
           <div class="message-time" v-if="msg.time">{{ msg.time }}</div>
@@ -83,6 +92,25 @@ import { ElMessage } from "element-plus";
 import { Delete, User, Promotion } from "@element-plus/icons-vue";
 import { sendChatMessage } from "@/api/aiChat";
 import { getUserInfos } from "@/api/user"; // 导入获取用户信息的API
+import MarkdownIt from "markdown-it"; // 导入markdown-it
+
+// 创建markdown-it实例并配置
+const md = new MarkdownIt({
+  html: true, // 允许HTML标签
+  breaks: true, // 将\n转换为<br>
+  linkify: true, // 自动将URL转换为链接
+  typographer: true, // 启用一些语言中立的替换和引号美化
+  highlight: function (str, lang) {
+    // 可以在这里添加代码高亮逻辑
+    return `<pre class="code-block"><code class="${lang}">${str}</code></pre>`;
+  },
+});
+
+// 渲染markdown函数
+const renderMarkdown = (content: string): string => {
+  if (!content) return "";
+  return md.render(content);
+};
 
 interface Message {
   type: "user" | "ai" | "system";
@@ -117,7 +145,8 @@ const clearMessages = () => {
   messages.value = [
     {
       type: "ai",
-      content: "你好！我是爱丽丝，有什么可以帮助你的吗？",
+      content:
+        "你好！我是爱丽丝，有什么可以帮助你的吗？\n\n你可以尝试向我提问，例如：\n\n* 前端开发技巧\n* 如何优化Vue应用\n* 解释一段代码",
       time: getCurrentTime(),
     },
   ];
@@ -185,10 +214,11 @@ const fetchUserInfo = async () => {
 
 // 加载初始欢迎消息和获取用户信息
 onMounted(async () => {
-  // 添加欢迎消息
+  // 添加欢迎消息，包含一些Markdown格式内容
   messages.value.push({
     type: "ai",
-    content: "你好！我是爱丽丝，有什么可以帮助你的吗？",
+    content:
+      "你好！我是爱丽丝，有什么可以帮助你的吗？\n\n你可以尝试向我提问，例如：\n\n* 前端开发技巧\n* 如何优化Vue应用\n* 解释一段代码",
     time: getCurrentTime(),
   });
 
@@ -198,6 +228,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 保留原有样式 */
 .chat-container {
   display: flex;
   flex-direction: column;
@@ -412,5 +443,117 @@ onMounted(async () => {
   .input-area {
     padding: 16px 20px;
   }
+}
+
+/* 添加Markdown样式 */
+.markdown-body {
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-body h1 {
+  font-size: 1.5em;
+  margin-top: 0;
+}
+
+.markdown-body h2 {
+  font-size: 1.3em;
+}
+
+.markdown-body h3 {
+  font-size: 1.1em;
+}
+
+.markdown-body p {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 20px;
+  margin-bottom: 16px;
+}
+
+.markdown-body li {
+  margin-bottom: 4px;
+}
+
+.markdown-body pre {
+  margin: 16px 0;
+  padding: 12px 16px;
+  overflow: auto;
+  background-color: #f6f8fa;
+  border-radius: 6px;
+}
+
+.markdown-body code {
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  padding: 2px 4px;
+  font-size: 0.9em;
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background-color: transparent;
+  white-space: pre;
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid #dfe2e5;
+  color: #6a737d;
+  padding: 0 16px;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  padding: 6px 13px;
+  border: 1px solid #dfe2e5;
+}
+
+.markdown-body table th {
+  background-color: #f6f8fa;
+}
+
+.markdown-body a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* 确保AI消息中的markdown内容显示正确 */
+.ai .message-text .markdown-body {
+  color: #333;
 }
 </style>
