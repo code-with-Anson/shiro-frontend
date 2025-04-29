@@ -388,7 +388,7 @@ onUnmounted(() => {
 /* 全屏布局 */
 .chat-layout {
   display: flex;
-  height: 100vh;
+  height: 85vh;
   width: 100%;
 }
 
