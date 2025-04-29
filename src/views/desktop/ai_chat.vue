@@ -21,10 +21,15 @@
         :class="['message', msg.type]"
       >
         <div class="avatar-container">
+          <!-- 使用用户真实头像或默认头像 -->
           <el-avatar
             :size="44"
-            :icon="msg.type === 'user' ? User : Assistant"
+            v-if="msg.type === 'user'"
+            :src="userAvatar || ''"
+            :icon="!userAvatar ? User : undefined"
           />
+          <!-- AI头像使用public文件夹中的alice图片 -->
+          <el-avatar :size="44" v-else :src="'/alice.jpg'" />
         </div>
         <div class="message-content">
           <div class="message-text">
@@ -45,22 +50,6 @@
           <div class="message-time" v-if="msg.time">{{ msg.time }}</div>
         </div>
       </div>
-
-      <!-- 移除这个单独的加载指示器 -->
-      <!-- 
-      <div v-if="isLoading" class="message ai">
-        <div class="avatar-container">
-          <el-avatar :size="44" :icon="Assistant" />
-        </div>
-        <div class="message-content">
-          <div class="message-text loading-container">
-            <span class="loading-dot"></span>
-            <span class="loading-dot"></span>
-            <span class="loading-dot"></span>
-          </div>
-        </div>
-      </div>
-      -->
     </div>
 
     <!-- 输入区域保持不变 -->
@@ -89,20 +78,11 @@
 </template>
 
 <script setup lang="ts">
-// 脚本部分保持不变
 import { ref, onMounted, nextTick, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { Delete, User, Promotion } from "@element-plus/icons-vue";
 import { sendChatMessage } from "@/api/aiChat";
-
-// 自定义图标组件
-const Assistant = {
-  template: `
-    <svg viewBox="0 0 24 24" width="1em" height="1em">
-      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8c0-2.11.83-4.03 2.19-5.45C7.55 7.95 9.68 9 12 9c2.32 0 4.45-1.05 5.81-2.45C19.17 7.97 20 9.89 20 12c0 4.41-3.59 8-8 8z"/>
-    </svg>
-  `,
-};
+import { getUserInfos } from "@/api/user"; // 导入获取用户信息的API
 
 interface Message {
   type: "user" | "ai" | "system";
@@ -114,6 +94,7 @@ const messages = ref<Message[]>([]);
 const userInput = ref("");
 const isLoading = ref(false);
 const messageArea = ref<HTMLElement | null>(null);
+const userAvatar = ref<string>(""); // 用户头像URL
 
 // 获取格式化的当前时间
 const getCurrentTime = (): string => {
@@ -190,13 +171,29 @@ const sendMessage = async () => {
   }
 };
 
-// 加载初始欢迎消息
-onMounted(() => {
+// 获取用户信息
+const fetchUserInfo = async () => {
+  try {
+    const userInfo = await getUserInfos();
+    if (userInfo && userInfo.avatar) {
+      userAvatar.value = userInfo.avatar;
+    }
+  } catch (error: any) {
+    console.error("获取用户信息失败:", error);
+  }
+};
+
+// 加载初始欢迎消息和获取用户信息
+onMounted(async () => {
+  // 添加欢迎消息
   messages.value.push({
     type: "ai",
     content: "你好！我是爱丽丝，有什么可以帮助你的吗？",
     time: getCurrentTime(),
   });
+
+  // 获取用户信息和头像
+  await fetchUserInfo();
 });
 </script>
 
