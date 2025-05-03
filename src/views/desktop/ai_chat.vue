@@ -613,7 +613,7 @@ const handleScrollToBottom = () => {
   showScrollButton.value = false;
 };
 
-// 处理用户滚动事件
+// 修改处理用户滚动事件的函数
 const handleScroll = () => {
   if (!messageArea.value || isScrolling.value) return;
 
@@ -624,6 +624,7 @@ const handleScroll = () => {
         messageArea.value.clientHeight
     ) < 10;
 
+  // 用户手动滚动时，记录状态
   if (!isAtBottom) {
     userScrolling.value = true;
     showScrollButton.value = true;
@@ -719,7 +720,11 @@ const sendMessage = async () => {
         if (responseConversationId === currentConversationId.value) {
           messages.value[aiMessageIndex].content =
             generatingContentCache.value.get(responseConversationId);
-          scrollToBottom();
+
+          // 只有当用户未主动向上滚动时，才自动滚动
+          if (!userScrolling.value) {
+            scrollToBottom();
+          }
         }
       },
       // 响应完成回调
@@ -986,7 +991,11 @@ const sendAnalysisPrompt = async (
         if (responseConversationId === currentConversationId.value) {
           messages.value[aiMessageIndex].content =
             generatingContentCache.value.get(responseConversationId);
-          scrollToBottom();
+
+          // 只有当用户未主动向上滚动时，才自动滚动
+          if (!userScrolling.value) {
+            scrollToBottom();
+          }
         }
       },
       // 响应完成回调
