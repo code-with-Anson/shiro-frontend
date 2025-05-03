@@ -211,7 +211,7 @@ const md = new MarkdownIt({
 });
 
 // 渲染markdown函数
-const renderMarkdown = (content) => {
+const renderMarkdown = (content: any) => {
   if (!content) return "";
   return md.render(content);
 };
@@ -842,7 +842,7 @@ const handleAiAnalysis = async () => {
 };
 
 // 添加数据格式化函数
-const formatAnalysisData = (data) => {
+const formatAnalysisData = (data: any) => {
   // 创建一个深拷贝以避免修改原始数据
   const formattedData = JSON.parse(JSON.stringify(data));
 
@@ -873,11 +873,13 @@ const formatAnalysisData = (data) => {
 
   // 格式化每日数据
   if (formattedData.dailyData && Array.isArray(formattedData.dailyData)) {
-    formattedData.dailyData = formattedData.dailyData.map((day) => ({
-      ...day,
-      income: Number(Number(day.income).toFixed(2)),
-      expense: Number(Number(day.expense).toFixed(2)),
-    }));
+    formattedData.dailyData = formattedData.dailyData.map(
+      (day: { income: any; expense: any }) => ({
+        ...day,
+        income: Number(Number(day.income).toFixed(2)),
+        expense: Number(Number(day.expense).toFixed(2)),
+      })
+    );
   }
 
   // 格式化月度数据

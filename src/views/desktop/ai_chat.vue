@@ -237,7 +237,7 @@ const md = new MarkdownIt({
   breaks: true,
   linkify: true,
   typographer: true,
-  highlight: function (str, lang) {
+  highlight: function (str: any, lang: any) {
     return `<pre class="code-block"><code class="${lang}">${str}</code></pre>`;
   },
 });
@@ -266,6 +266,21 @@ const showScrollButton = ref(false);
 const isScrolling = ref(false);
 const requestingConversationId = ref<string>(""); // 新增变量
 
+// 添加一个消息缓存映射
+const messageCache = ref(new Map()); // 最终的完整消息
+const generatingContentCache = ref(new Map()); // 仅用于暂存生成中的内容
+
+// 用于定时刷新的定时器引用
+let refreshTimerRef = null;
+
+// 添加一个Map来跟踪哪些会话正在生成回复
+const generatingMessages = ref(new Set());
+
+// 判断会话是否正在生成消息
+const isMessageGenerating = (conversationId: string) => {
+  return generatingMessages.value.has(conversationId);
+};
+
 // 会话管理相关状态
 const chatHistory = ref<UserConversation[]>([]);
 const currentConversationId = ref<string>("");
@@ -287,6 +302,16 @@ const deletingConversation = ref<boolean>(false);
 // 路由对象
 const route = useRoute();
 
+// 辅助函数：查找最后一个AI消息的索引
+const findLastAiMessageIndex = (msgArray: Message[]) => {
+  for (let i = msgArray.length - 1; i >= 0; i--) {
+    if (msgArray[i].type === "ai") {
+      return i;
+    }
+  }
+  return -1;
+};
+
 // 切换对话
 const switchChat = async (conversationId: string) => {
   if (currentConversationId.value === conversationId) return;
@@ -294,38 +319,87 @@ const switchChat = async (conversationId: string) => {
   try {
     isLoading.value = true;
 
-    // 重置生成状态，防止旧会话的加载动画继续显示
+    // 如果当前会话有缓存的消息，先保存它们
+    if (currentConversationId.value && messages.value.length > 0) {
+      messageCache.value.set(currentConversationId.value, [...messages.value]);
+    }
+
+    // 重置生成状态，但不停止当前会话的实际生成过程
     isGenerating.value = false;
 
     // 更新当前会话ID
     currentConversationId.value = conversationId;
 
-    // 清空当前消息
+    // 清空当前消息区域
     messages.value = [];
 
-    try {
-      // 获取对话历史消息
-      const chatHistory = await getChatHistory(conversationId);
+    // 检查此会话是否正在生成内容
+    const isGeneratingContent = isMessageGenerating(conversationId);
 
-      if (chatHistory && chatHistory.length > 0) {
-        // 添加历史消息
-        messages.value = chatHistory;
-      } else {
-        // 如果没有历史消息，添加初始消息
+    // 如果是正在生成消息的会话，先尝试从服务器获取最新状态
+    if (isGeneratingContent) {
+      try {
+        // 获取对话历史消息
+        const chatHistory = await getChatHistory(conversationId);
+
+        if (chatHistory && chatHistory.length > 0) {
+          // 添加历史消息
+          messages.value = [...chatHistory];
+
+          // 如果有生成中的内容缓存，将它附加到最后一条AI消息
+          if (generatingContentCache.value.has(conversationId)) {
+            const lastAiMessageIndex = findLastAiMessageIndex(messages.value);
+            if (lastAiMessageIndex !== -1) {
+              messages.value[lastAiMessageIndex].content =
+                generatingContentCache.value.get(conversationId);
+            }
+          }
+
+          // 设置生成状态
+          isGenerating.value = true;
+        }
+      } catch (error) {
+        console.error("获取生成中的对话失败:", error);
+
+        // 如果获取失败但有普通缓存，使用缓存
+        if (messageCache.value.has(conversationId)) {
+          messages.value = [...messageCache.value.get(conversationId)];
+          isGenerating.value = true;
+        }
+      }
+    } else if (messageCache.value.has(conversationId)) {
+      // 不在生成中且有缓存，直接使用缓存
+      messages.value = [...messageCache.value.get(conversationId)];
+    } else {
+      // 没有缓存也不在生成中，从服务器加载
+      try {
+        // 获取对话历史消息
+        const chatHistory = await getChatHistory(conversationId);
+
+        if (chatHistory && chatHistory.length > 0) {
+          // 添加历史消息
+          messages.value = chatHistory;
+          // 缓存这些消息
+          messageCache.value.set(conversationId, [...messages.value]);
+        } else {
+          // 如果没有历史消息，添加初始消息
+          messages.value.push({
+            type: "ai",
+            content: "已切换到此会话，请继续您的问题...",
+            time: getCurrentTime(),
+          });
+          // 缓存初始消息
+          messageCache.value.set(conversationId, [...messages.value]);
+        }
+      } catch (error: any) {
+        console.error("获取对话历史失败:", error);
+        // 发生错误时显示提示消息
         messages.value.push({
           type: "ai",
           content: "已切换到此会话，请继续您的问题...",
           time: getCurrentTime(),
         });
       }
-    } catch (error: any) {
-      console.error("获取对话历史失败:", error);
-      // 发生错误时，也显示提示消息
-      messages.value.push({
-        type: "ai",
-        content: "已切换到此会话，请继续您的问题...",
-        time: getCurrentTime(),
-      });
     }
 
     // 滚动到底部
@@ -560,7 +634,10 @@ const handleScroll = () => {
 };
 
 // 处理键盘事件
-const handleKeyDown = (event) => {
+const handleKeyDown = (event: {
+  shiftKey: any;
+  preventDefault: () => void;
+}) => {
   // 如果按下Shift键+Enter，允许换行（不做处理）
   if (event.shiftKey) {
     return;
@@ -588,22 +665,24 @@ const sendMessage = async () => {
   )
     return;
 
+  const userMessage = userInput.value.trim();
+  userInput.value = ""; // 清空输入框
+
   // 添加用户消息
   messages.value.push({
     type: "user",
-    content: userInput.value.trim(),
+    content: userMessage,
     time: getCurrentTime(),
   });
 
-  const userMessage = userInput.value.trim();
-  userInput.value = ""; // 清空输入框，允许用户继续输入
-
-  // 设置发送按钮状态为加载中，但不禁用输入框
   isSending.value = true;
   isGenerating.value = true;
 
   // 记录当前进行请求的会话ID
-  requestingConversationId.value = currentConversationId.value;
+  const requestConversationId = currentConversationId.value;
+
+  // 标记当前会话正在生成消息
+  generatingMessages.value.add(requestConversationId);
 
   try {
     // 创建AI消息占位
@@ -614,92 +693,147 @@ const sendMessage = async () => {
       time: getCurrentTime(),
     });
 
-    let aiResponse = "";
+    // 初始化生成内容缓存
+    generatingContentCache.value.set(requestConversationId, "");
+
+    // 更新消息缓存
+    messageCache.value.set(requestConversationId, [...messages.value]);
 
     // 使用封装的API发送请求
     await sendChatMessage(
       userMessage,
-      currentConversationId.value,
+      requestConversationId,
       (chunk, responseConversationId) => {
-        // 检查响应的会话ID是否匹配当前活动的会话ID
+        if (!responseConversationId)
+          responseConversationId = requestConversationId;
+
+        // 累加到生成内容缓存中
+        const currentContent =
+          generatingContentCache.value.get(responseConversationId) || "";
+        generatingContentCache.value.set(
+          responseConversationId,
+          currentContent + chunk
+        );
+
+        // 如果是当前显示的对话，更新UI
         if (responseConversationId === currentConversationId.value) {
-          aiResponse += chunk;
-          messages.value[aiMessageIndex].content = aiResponse;
+          messages.value[aiMessageIndex].content =
+            generatingContentCache.value.get(responseConversationId);
           scrollToBottom();
         }
       },
       // 响应完成回调
-      (responseConversationId) => {
+      async (responseConversationId) => {
+        if (!responseConversationId)
+          responseConversationId = requestConversationId;
+
+        try {
+          // 从服务器获取最新的完整消息
+          const latestMessages = await getChatHistory(responseConversationId);
+
+          // 更新缓存为服务器最新数据
+          if (latestMessages && latestMessages.length > 0) {
+            messageCache.value.set(responseConversationId, latestMessages);
+
+            // 如果是当前会话，更新UI
+            if (responseConversationId === currentConversationId.value) {
+              messages.value = latestMessages;
+              isGenerating.value = false;
+              scrollToBottom();
+            }
+          }
+
+          // 清理生成内容缓存，已不再需要
+          generatingContentCache.value.delete(responseConversationId);
+        } catch (error) {
+          console.error("获取完整消息失败:", error);
+        }
+
+        // 完成后移除生成标记
+        generatingMessages.value.delete(responseConversationId);
+
         if (responseConversationId === currentConversationId.value) {
           isGenerating.value = false;
+          isSending.value = false;
         }
-        // 无论如何都重置发送状态
-        isSending.value = false;
+
+        // 触发自动更新会话主题的逻辑
+        const currentChat = chatHistory.value.find(
+          (c) => c.conversationId === responseConversationId
+        );
+
+        if (
+          currentChat &&
+          currentChat.topic === "新对话" &&
+          messages.value.length <= 3
+        ) {
+          autoUpdateConversationTopic(
+            responseConversationId,
+            userMessage,
+            currentChat.topic
+          )
+            .then((newTopic) => {
+              if (newTopic) {
+                const index = chatHistory.value.findIndex(
+                  (c) => c.conversationId === responseConversationId
+                );
+                if (index !== -1) {
+                  chatHistory.value[index].topic = newTopic;
+                }
+              }
+            })
+            .catch((error) => {
+              console.error("更新会话主题失败:", error);
+            });
+        }
       },
       // 错误处理
       (error, responseConversationId) => {
+        if (!responseConversationId)
+          responseConversationId = requestConversationId;
+
         console.error("聊天请求失败:", error);
 
-        // 只有当错误是关于当前会话时才显示错误消息
+        // 清理生成内容缓存
+        generatingContentCache.value.delete(responseConversationId);
+
+        // 移除生成标记
+        generatingMessages.value.delete(responseConversationId);
+
         if (responseConversationId === currentConversationId.value) {
+          isGenerating.value = false;
+          isSending.value = false;
+
           ElMessage({
             message: `聊天请求失败: ${error.message}`,
             type: "error",
           });
+
           messages.value.push({
             type: "system",
             content: "通信出错！与AI的连接似乎断开了...",
             time: getCurrentTime(),
           });
         }
-
-        // 重置状态
-        isGenerating.value = false;
-        isSending.value = false;
       }
     );
-
-    // 如果是第一条消息且主题是"新对话"，更新会话主题
-    const currentChat = chatHistory.value.find(
-      (c) => c.conversationId === currentConversationId.value
-    );
-
-    if (
-      currentChat &&
-      currentChat.topic === "新对话" &&
-      messages.value.length <= 3
-    ) {
-      const newTopic = await autoUpdateConversationTopic(
-        currentConversationId.value,
-        userMessage,
-        currentChat.topic
-      );
-
-      // 如果成功更新了主题，同步更新本地状态
-      if (newTopic) {
-        const index = chatHistory.value.findIndex(
-          (c) => c.conversationId === currentConversationId.value
-        );
-        if (index !== -1) {
-          chatHistory.value[index].topic = newTopic;
-        }
-      }
-    }
   } catch (error: any) {
     console.error("聊天请求失败:", error);
+
+    isGenerating.value = false;
+    isSending.value = false;
+    generatingMessages.value.delete(requestConversationId);
+
     ElMessage({
       message: `聊天请求失败: ${error.message}`,
       type: "error",
     });
+
     messages.value.push({
       type: "system",
       content: "通信出错！与AI的连接似乎断开了...",
       time: getCurrentTime(),
     });
-
-    // 确保出错时也重置状态
-    isGenerating.value = false;
-    isSending.value = false;
   }
 };
 
@@ -715,11 +849,29 @@ const fetchUserInfo = async () => {
   }
 };
 
-// 发送分析提示
-const sendAnalysisPrompt = async (billData, timeRange, timeDescription) => {
+// 修改sendAnalysisPrompt函数
+const sendAnalysisPrompt = async (
+  billData: {
+    totalIncome: any;
+    totalExpense: any;
+    netIncome: any;
+    expenseCategoryDetails: { [s: string]: unknown } | ArrayLike<unknown>;
+    incomeCategoryDetails: { [s: string]: unknown } | ArrayLike<unknown>;
+    dailyData: any[];
+    monthDetails: any[];
+  },
+  timeRange: string,
+  timeDescription: string
+) => {
   try {
     isSending.value = true;
     isGenerating.value = true;
+
+    // 标记当前会话正在生成消息
+    generatingMessages.value.add(currentConversationId.value);
+
+    // 保存请求时的会话ID，以防在生成过程中用户切换对话
+    const requestConversationId = currentConversationId.value;
 
     // 准备发送给AI的消息
     let prompt = `我需要你作为一个财务分析专家，分析以下${timeDescription}的账单数据：\n\n`;
@@ -767,11 +919,13 @@ const sendAnalysisPrompt = async (billData, timeRange, timeDescription) => {
       });
     } else if (timeRange === "month" && billData.dailyData) {
       prompt += "**每日收支数据**:\n";
-      billData.dailyData.forEach((day) => {
-        const date = new Date(day.date);
-        const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
-        prompt += `- ${formattedDate}: 收入 ${day.income} 元, 支出 ${day.expense} 元\n`;
-      });
+      billData.dailyData.forEach(
+        (day: { date: string | number | Date; income: any; expense: any }) => {
+          const date = new Date(day.date);
+          const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
+          prompt += `- ${formattedDate}: 收入 ${day.income} 元, 支出 ${day.expense} 元\n`;
+        }
+      );
     } else if (timeRange === "year" && billData.monthDetails) {
       prompt += "**每月收支数据**:\n";
       billData.monthDetails.forEach((month) => {
@@ -804,44 +958,107 @@ const sendAnalysisPrompt = async (billData, timeRange, timeDescription) => {
       time: getCurrentTime(),
     });
 
+    // 初始化生成内容缓存
+    generatingContentCache.value.set(requestConversationId, "");
+
+    // 更新消息缓存
+    messageCache.value.set(requestConversationId, [...messages.value]);
+
     let aiResponse = "";
 
     // 使用封装的API发送请求
     await sendChatMessage(
       prompt,
-      currentConversationId.value,
-      (chunk) => {
-        aiResponse += chunk;
-        messages.value[aiMessageIndex].content = aiResponse;
-        scrollToBottom();
+      requestConversationId,
+      (chunk, responseConversationId) => {
+        if (!responseConversationId)
+          responseConversationId = requestConversationId;
+
+        // 累加到生成内容缓存中
+        const currentContent =
+          generatingContentCache.value.get(responseConversationId) || "";
+        generatingContentCache.value.set(
+          responseConversationId,
+          currentContent + chunk
+        );
+
+        // 如果是当前显示的对话，更新UI
+        if (responseConversationId === currentConversationId.value) {
+          messages.value[aiMessageIndex].content =
+            generatingContentCache.value.get(responseConversationId);
+          scrollToBottom();
+        }
       },
       // 响应完成回调
-      () => {
-        isGenerating.value = false;
-        isSending.value = false;
+      async (responseConversationId) => {
+        if (!responseConversationId)
+          responseConversationId = requestConversationId;
+
+        try {
+          // 从服务器获取最新的完整消息
+          const latestMessages = await getChatHistory(responseConversationId);
+
+          // 更新缓存为服务器最新数据
+          if (latestMessages && latestMessages.length > 0) {
+            messageCache.value.set(responseConversationId, latestMessages);
+
+            // 如果是当前会话，更新UI
+            if (responseConversationId === currentConversationId.value) {
+              messages.value = latestMessages;
+              isGenerating.value = false;
+              scrollToBottom();
+            }
+          }
+
+          // 清理生成内容缓存，已不再需要
+          generatingContentCache.value.delete(responseConversationId);
+        } catch (error) {
+          console.error("获取完整消息失败:", error);
+        }
+
+        // 完成后移除生成标记
+        generatingMessages.value.delete(responseConversationId);
+
+        if (responseConversationId === currentConversationId.value) {
+          isGenerating.value = false;
+          isSending.value = false;
+        }
       },
       // 错误处理
-      (error) => {
+      (error, responseConversationId) => {
         console.error("账单分析请求失败:", error);
-        ElMessage({
-          message: `分析请求失败: ${error.message}`,
-          type: "error",
-        });
 
-        messages.value.push({
-          type: "system",
-          content: "账单分析出错，请稍后重试...",
-          time: getCurrentTime(),
-        });
+        if (!responseConversationId)
+          responseConversationId = requestConversationId;
 
-        isGenerating.value = false;
-        isSending.value = false;
+        // 清理生成内容缓存
+        generatingContentCache.value.delete(responseConversationId);
+
+        // 移除生成标记
+        generatingMessages.value.delete(responseConversationId);
+
+        if (responseConversationId === currentConversationId.value) {
+          isGenerating.value = false;
+          isSending.value = false;
+
+          ElMessage({
+            message: `分析请求失败: ${error.message}`,
+            type: "error",
+          });
+
+          messages.value.push({
+            type: "system",
+            content: "账单分析出错，请稍后重试...",
+            time: getCurrentTime(),
+          });
+        }
       }
     );
   } catch (error) {
     console.error("发送分析提示失败:", error);
     isGenerating.value = false;
     isSending.value = false;
+    generatingMessages.value.delete(currentConversationId.value);
   }
 };
 
@@ -932,12 +1149,34 @@ onMounted(async () => {
   if (messageArea.value) {
     messageArea.value.addEventListener("scroll", handleScroll);
   }
+
+  // 添加定时刷新机制，每3秒检查一次正在生成的会话
+  refreshTimerRef = setInterval(async () => {
+    // 对于正在生成中的会话，如果是当前显示的，则更新其显示内容
+    if (generatingMessages.value.has(currentConversationId.value)) {
+      const generatingContent = generatingContentCache.value.get(
+        currentConversationId.value
+      );
+      if (generatingContent) {
+        const lastAiMessageIndex = findLastAiMessageIndex(messages.value);
+        if (lastAiMessageIndex !== -1) {
+          messages.value[lastAiMessageIndex].content = generatingContent;
+        }
+      }
+    }
+  }, 3000); // 每3秒检查一次
 });
 
 // 组件卸载时移除事件监听
 onUnmounted(() => {
   if (messageArea.value) {
     messageArea.value.removeEventListener("scroll", handleScroll);
+  }
+
+  // 清除定时刷新定时器
+  if (refreshTimerRef) {
+    clearInterval(refreshTimerRef);
+    refreshTimerRef = null;
   }
 });
 </script>
