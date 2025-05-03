@@ -1,6 +1,6 @@
 import axiosInstance from "@/utils/axios";
 import type { AxiosProgressEvent } from "axios";
-import { v4 as uuidv4 } from "uuid"; // 需要安装: npm install uuid @types/uuid
+import { v4 as uuidv4 } from "uuid";
 
 // 会话接口类型定义
 export interface UserConversation {
@@ -20,7 +20,7 @@ export interface PageResponse {
 
 // 聊天消息接口定义
 export interface ChatMessage {
-  type: "user" | "ai";
+  type: "user" | "ai" | "system";
   content: string;
   time: string;
 }
@@ -37,11 +37,13 @@ const isSuccessResponse = (code: any): boolean => {
  * @param message 用户输入的消息
  * @param conversationId 会话ID
  * @param onChunk 处理每个数据块的回调函数
+ * @param onComplete 响应完成后的回调函数
  */
 export async function sendChatMessage(
   message: string,
   conversationId: string,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  onComplete?: () => void
 ): Promise<void> {
   let accumulatedResponse = "";
 
@@ -86,6 +88,11 @@ export async function sendChatMessage(
     // 确保最终完整响应被处理
     if (response.status !== 200) {
       throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // 调用完成回调函数
+    if (onComplete) {
+      onComplete();
     }
   } catch (error: any) {
     if (error.response?.data) {
@@ -218,12 +225,6 @@ export async function getChatHistory(
   }
 }
 
-// 辅助函数：获取当前时间字符串
-function getCurrentTime(): string {
-  const now = new Date();
-  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
 /**
  * 更新会话主题
  * @param conversationId 会话ID
@@ -273,4 +274,65 @@ export async function deleteConversation(
       throw new Error("网络错误，删除会话失败");
     }
   }
+}
+
+/**
+ * 根据用户第一条消息自动更新会话主题
+ * @param conversationId 会话ID
+ * @param userMessage 用户消息
+ * @param currentTopic 当前主题
+ */
+export async function autoUpdateConversationTopic(
+  conversationId: string,
+  userMessage: string,
+  currentTopic: string
+): Promise<string | null> {
+  // 只有当当前主题是"新对话"时才自动更新
+  if (currentTopic !== "新对话") {
+    return null;
+  }
+
+  const newTopic =
+    userMessage.length > 15
+      ? userMessage.substring(0, 15) + "..."
+      : userMessage;
+
+  try {
+    await updateConversationTopic(conversationId, newTopic);
+    return newTopic;
+  } catch (error) {
+    console.error("自动更新会话主题失败:", error);
+    return null;
+  }
+}
+
+// 格式化时间函数
+export function formatTime(timeStr: string): string {
+  if (!timeStr) return "";
+
+  const date = new Date(timeStr);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const isYesterday =
+    new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+
+  if (isToday) {
+    return `今天 ${date.getHours().toString().padStart(2, "0")}:${date
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+  } else if (isYesterday) {
+    return `昨天 ${date.getHours().toString().padStart(2, "0")}:${date
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+  } else {
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+}
+
+// 辅助函数：获取当前时间字符串
+export function getCurrentTime(): string {
+  const now = new Date();
+  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }

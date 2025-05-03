@@ -89,7 +89,7 @@
             <div class="message-content">
               <div class="message-text">
                 <template
-                  v-if="msg.type === 'ai' && msg.content === '' && isLoading"
+                  v-if="msg.type === 'ai' && msg.content === '' && isGenerating"
                 >
                   <div class="loading-container">
                     <span class="loading-dot"></span>
@@ -130,22 +130,26 @@
             type="textarea"
             :rows="3"
             placeholder="请输入您的问题..."
-            :disabled="isLoading || !currentConversationId"
-            @keyup.enter.ctrl="sendMessage"
+            :disabled="!currentConversationId"
+            @keydown.enter="handleKeyDown"
             resize="none"
           />
           <el-button
             type="primary"
             @click="sendMessage"
-            :loading="isLoading"
-            :disabled="!currentConversationId"
+            :loading="isSending"
+            :disabled="
+              isSending ||
+              !currentConversationId ||
+              userInput.trim().length === 0
+            "
             :icon="Promotion"
             size="large"
           >
             发送
           </el-button>
         </div>
-        <div class="tips">按Ctrl+Enter快速发送</div>
+        <div class="tips">按Enter发送，Shift+Enter换行</div>
       </div>
     </div>
 
@@ -195,7 +199,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick, onUnmounted, watch } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage } from "element-plus";
 import {
   Delete,
   Edit,
@@ -211,11 +215,15 @@ import {
   updateConversationTopic,
   deleteConversation,
   getChatHistory,
+  autoUpdateConversationTopic,
+  formatTime,
+  getCurrentTime,
   type UserConversation,
+  type ChatMessage as ApiChatMessage,
 } from "@/api/aiChat";
 import { getUserInfos } from "@/api/user";
 import MarkdownIt from "markdown-it";
-import { v4 as uuidv4 } from "uuid"; // 需要安装: npm install uuid @types/uuid
+import { v4 as uuidv4 } from "uuid";
 
 // 创建markdown-it实例并配置
 const md = new MarkdownIt({
@@ -242,7 +250,9 @@ interface Message {
 
 const messages = ref<Message[]>([]);
 const userInput = ref("");
-const isLoading = ref(false);
+const isLoading = ref(false); // 用于整体加载状态
+const isSending = ref(false); // 专门用于发送按钮状态
+const isGenerating = ref(false); // 用于标识AI是否正在生成回复
 const messageArea = ref<HTMLElement | null>(null);
 const userAvatar = ref<string>("");
 const userScrolling = ref(false);
@@ -266,31 +276,6 @@ const savingTopic = ref<boolean>(false);
 const deleteDialogVisible = ref<boolean>(false);
 const deletingConversationId = ref<string>("");
 const deletingConversation = ref<boolean>(false);
-
-// 格式化时间函数
-const formatTime = (timeStr: string): string => {
-  if (!timeStr) return "";
-
-  const date = new Date(timeStr);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const isYesterday =
-    new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
-
-  if (isToday) {
-    return `今天 ${date.getHours().toString().padStart(2, "0")}:${date
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`;
-  } else if (isYesterday) {
-    return `昨天 ${date.getHours().toString().padStart(2, "0")}:${date
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`;
-  } else {
-    return `${date.getMonth() + 1}月${date.getDate()}日`;
-  }
-};
 
 // 切换对话
 const switchChat = async (conversationId: string) => {
@@ -434,12 +419,6 @@ const confirmDeleteAction = async () => {
   }
 };
 
-// 获取格式化的当前时间
-const getCurrentTime = (): string => {
-  const now = new Date();
-  return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-};
-
 // 分页切换
 const handlePageChange = async (page: number) => {
   currentPage.value = page;
@@ -514,11 +493,31 @@ const handleScroll = () => {
   }
 };
 
+// 处理键盘事件
+const handleKeyDown = (event) => {
+  // 如果按下Shift键+Enter，允许换行（不做处理）
+  if (event.shiftKey) {
+    return;
+  }
+
+  // 非Shift+Enter情况，阻止默认行为（换行）
+  event.preventDefault();
+
+  // 如果满足发送条件，则发送消息
+  if (
+    !isSending.value &&
+    currentConversationId.value &&
+    userInput.value.trim()
+  ) {
+    sendMessage();
+  }
+};
+
 // 发送消息
 const sendMessage = async () => {
   if (
     !userInput.value.trim() ||
-    isLoading.value ||
+    isSending.value ||
     !currentConversationId.value
   )
     return;
@@ -531,8 +530,11 @@ const sendMessage = async () => {
   });
 
   const userMessage = userInput.value.trim();
-  userInput.value = "";
-  isLoading.value = true;
+  userInput.value = ""; // 清空输入框，允许用户继续输入
+
+  // 设置发送按钮状态为加载中，但不禁用输入框
+  isSending.value = true;
+  isGenerating.value = true;
 
   try {
     // 创建AI消息占位
@@ -546,36 +548,45 @@ const sendMessage = async () => {
     let aiResponse = "";
 
     // 使用封装的API发送请求
-    await sendChatMessage(userMessage, currentConversationId.value, (chunk) => {
-      aiResponse += chunk;
-      messages.value[aiMessageIndex].content = aiResponse;
-      scrollToBottom();
-    });
+    await sendChatMessage(
+      userMessage,
+      currentConversationId.value,
+      (chunk) => {
+        aiResponse += chunk;
+        messages.value[aiMessageIndex].content = aiResponse;
+        scrollToBottom();
+      },
+      // 响应完成回调
+      () => {
+        isGenerating.value = false;
+        isSending.value = false;
+      }
+    );
 
     // 如果是第一条消息且主题是"新对话"，更新会话主题
     const currentChat = chatHistory.value.find(
       (c) => c.conversationId === currentConversationId.value
     );
+
     if (
       currentChat &&
       currentChat.topic === "新对话" &&
       messages.value.length <= 3
     ) {
-      const newTopic =
-        userMessage.length > 15
-          ? userMessage.substring(0, 15) + "..."
-          : userMessage;
-      try {
-        await updateConversationTopic(currentConversationId.value, newTopic);
-        // 更新本地会话列表
+      const newTopic = await autoUpdateConversationTopic(
+        currentConversationId.value,
+        userMessage,
+        currentChat.topic
+      );
+
+      // 如果成功更新了主题，同步更新本地状态
+      if (newTopic) {
         const index = chatHistory.value.findIndex(
           (c) => c.conversationId === currentConversationId.value
         );
         if (index !== -1) {
           chatHistory.value[index].topic = newTopic;
         }
-      } catch (error: any) {
-        console.error("更新会话主题失败:", error);
       }
     }
   } catch (error: any) {
@@ -589,8 +600,10 @@ const sendMessage = async () => {
       content: "通信出错！与AI的连接似乎断开了...",
       time: getCurrentTime(),
     });
-  } finally {
-    isLoading.value = false;
+
+    // 确保出错时也重置状态
+    isGenerating.value = false;
+    isSending.value = false;
   }
 };
 
