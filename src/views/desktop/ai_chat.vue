@@ -16,15 +16,47 @@
       </div>
 
       <div class="history-list">
+        <el-empty
+          v-if="chatHistory.length === 0"
+          description="暂无历史对话"
+          :image-size="100"
+        ></el-empty>
         <div
+          v-else
           v-for="(chat, idx) in chatHistory"
-          :key="idx"
-          :class="['history-item', { active: chat.active }]"
-          @click="switchChat(idx)"
+          :key="chat.conversationId"
+          :class="[
+            'history-item',
+            { active: currentConversationId === chat.conversationId },
+          ]"
+          @click="switchChat(chat.conversationId)"
         >
-          <span class="history-title">{{ chat.title }}</span>
-          <span class="history-time">{{ chat.time }}</span>
+          <div class="history-item-content">
+            <span class="history-title">{{ chat.topic }}</span>
+            <span class="history-time">{{ formatTime(chat.createTime) }}</span>
+          </div>
+          <div class="history-actions">
+            <el-tooltip content="编辑主题" placement="top" :hide-after="1500">
+              <el-icon @click.stop="editTopic(chat)"><Edit /></el-icon>
+            </el-tooltip>
+            <el-tooltip content="删除对话" placement="top" :hide-after="1500">
+              <el-icon @click.stop="confirmDelete(chat.conversationId)"
+                ><Delete
+              /></el-icon>
+            </el-tooltip>
+          </div>
         </div>
+      </div>
+
+      <div class="pagination" v-if="chatHistory.length > 0">
+        <el-pagination
+          small
+          layout="prev, pager, next"
+          :total="totalConversations"
+          :page-size="pageSize"
+          v-model:current-page="currentPage"
+          @current-change="handlePageChange"
+        />
       </div>
     </div>
 
@@ -32,7 +64,15 @@
     <div class="chat-main">
       <div class="message-container">
         <div class="message-area" ref="messageArea">
+          <el-empty
+            v-if="messages.length === 0"
+            description="开始一个新的对话吧"
+            :image-size="150"
+          >
+            <el-button type="primary" @click="startNewChat">新建对话</el-button>
+          </el-empty>
           <div
+            v-else
             v-for="(msg, index) in messages"
             :key="index"
             :class="['message', msg.type]"
@@ -90,7 +130,7 @@
             type="textarea"
             :rows="3"
             placeholder="请输入您的问题..."
-            :disabled="isLoading"
+            :disabled="isLoading || !currentConversationId"
             @keyup.enter.ctrl="sendMessage"
             resize="none"
           />
@@ -98,6 +138,7 @@
             type="primary"
             @click="sendMessage"
             :loading="isLoading"
+            :disabled="!currentConversationId"
             :icon="Promotion"
             size="large"
           >
@@ -107,22 +148,74 @@
         <div class="tips">按Ctrl+Enter快速发送</div>
       </div>
     </div>
+
+    <!-- 编辑主题对话框 -->
+    <el-dialog
+      v-model="editDialogVisible"
+      title="编辑会话主题"
+      width="30%"
+      :close-on-click-modal="false"
+    >
+      <el-input
+        v-model="editingTopic"
+        placeholder="请输入新的会话主题"
+      ></el-input>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="editDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="saveTopic" :loading="savingTopic"
+            >保存</el-button
+          >
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 删除确认对话框 -->
+    <el-dialog
+      v-model="deleteDialogVisible"
+      title="确认删除"
+      width="30%"
+      :close-on-click-modal="false"
+    >
+      <span>确定要删除这个会话吗？此操作不可恢复。</span>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="deleteDialogVisible = false">取消</el-button>
+          <el-button
+            type="danger"
+            @click="confirmDeleteAction"
+            :loading="deletingConversation"
+            >确认删除</el-button
+          >
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, onUnmounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ref, onMounted, nextTick, onUnmounted, watch } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Delete,
+  Edit,
   User,
   Promotion,
   ArrowDown,
   Plus,
 } from "@element-plus/icons-vue";
-import { sendChatMessage } from "@/api/aiChat";
+import {
+  sendChatMessage,
+  createConversation,
+  getConversationHistory,
+  updateConversationTopic,
+  deleteConversation,
+  getChatHistory,
+  type UserConversation,
+} from "@/api/aiChat";
 import { getUserInfos } from "@/api/user";
 import MarkdownIt from "markdown-it";
+import { v4 as uuidv4 } from "uuid"; // 需要安装: npm install uuid @types/uuid
 
 // 创建markdown-it实例并配置
 const md = new MarkdownIt({
@@ -147,14 +240,6 @@ interface Message {
   time?: string;
 }
 
-// 历史对话接口
-interface ChatHistoryItem {
-  id: number;
-  title: string;
-  time: string;
-  active: boolean;
-}
-
 const messages = ref<Message[]>([]);
 const userInput = ref("");
 const isLoading = ref(false);
@@ -162,68 +247,191 @@ const messageArea = ref<HTMLElement | null>(null);
 const userAvatar = ref<string>("");
 const userScrolling = ref(false);
 const showScrollButton = ref(false);
-const isScrolling = ref(false); // 防止滚动过程中按钮闪烁
+const isScrolling = ref(false);
 
-// 模拟的历史对话数据
-const chatHistory = ref<ChatHistoryItem[]>([
-  { id: 1, title: "Vue3组件开发", time: "今天 14:35", active: true },
-  { id: 2, title: "CSS布局问题", time: "昨天 10:22", active: false },
-  { id: 3, title: "React vs Vue", time: "3月15日", active: false },
-  { id: 4, title: "TypeScript类型系统", time: "3月10日", active: false },
-  { id: 5, title: "后端API设计", time: "3月5日", active: false },
-]);
+// 会话管理相关状态
+const chatHistory = ref<UserConversation[]>([]);
+const currentConversationId = ref<string>("");
+const totalConversations = ref<number>(0);
+const currentPage = ref<number>(1);
+const pageSize = ref<number>(10);
+
+// 编辑主题相关
+const editDialogVisible = ref<boolean>(false);
+const editingTopic = ref<string>("");
+const editingConversationId = ref<string>("");
+const savingTopic = ref<boolean>(false);
+
+// 删除会话相关
+const deleteDialogVisible = ref<boolean>(false);
+const deletingConversationId = ref<string>("");
+const deletingConversation = ref<boolean>(false);
+
+// 格式化时间函数
+const formatTime = (timeStr: string): string => {
+  if (!timeStr) return "";
+
+  const date = new Date(timeStr);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const isYesterday =
+    new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+
+  if (isToday) {
+    return `今天 ${date.getHours().toString().padStart(2, "0")}:${date
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+  } else if (isYesterday) {
+    return `昨天 ${date.getHours().toString().padStart(2, "0")}:${date
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+  } else {
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+};
 
 // 切换对话
-const switchChat = (index: number) => {
-  chatHistory.value.forEach((chat, idx) => {
-    chat.active = idx === index;
-  });
-  // 这里可以添加加载对应对话内容的逻辑
+const switchChat = async (conversationId: string) => {
+  if (currentConversationId.value === conversationId) return;
 
-  // 模拟切换对话，清空当前消息
-  messages.value = [];
+  try {
+    isLoading.value = true;
+    currentConversationId.value = conversationId;
 
-  // 添加模拟的初始消息
-  messages.value.push({
-    type: "ai",
-    content: `您正在查看"${chatHistory.value[index].title}"的对话。请继续您的问题...`,
-    time: getCurrentTime(),
-  });
+    // 清空当前消息
+    messages.value = [];
 
-  // 滚动到底部
-  scrollToBottom(true);
+    try {
+      // 获取对话历史消息
+      const chatHistory = await getChatHistory(conversationId);
+
+      if (chatHistory && chatHistory.length > 0) {
+        // 添加历史消息
+        messages.value = chatHistory;
+      } else {
+        // 如果没有历史消息，添加初始消息
+        messages.value.push({
+          type: "ai",
+          content: "已切换到此会话，请继续您的问题...",
+          time: getCurrentTime(),
+        });
+      }
+    } catch (error: any) {
+      console.error("获取对话历史失败:", error);
+      // 发生错误时，也显示提示消息
+      messages.value.push({
+        type: "ai",
+        content: "已切换到此会话，请继续您的问题...",
+        time: getCurrentTime(),
+      });
+    }
+
+    // 滚动到底部
+    scrollToBottom(true);
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 // 新建对话
-const startNewChat = () => {
-  // 重置所有active状态
-  chatHistory.value.forEach((chat) => {
-    chat.active = false;
-  });
+const startNewChat = async () => {
+  try {
+    isLoading.value = true;
 
-  // 添加新对话
-  const newChat = {
-    id: Date.now(),
-    title: "新对话",
-    time: getCurrentTime(),
-    active: true,
-  };
+    // 创建新会话
+    const conversationId = await createConversation("新对话");
+    currentConversationId.value = conversationId;
 
-  // 添加到顶部
-  chatHistory.value.unshift(newChat);
+    // 重新加载会话列表
+    await loadConversations();
 
-  // 清空当前对话
-  messages.value = [];
+    // 清空当前对话
+    messages.value = [];
 
-  // 添加欢迎消息
-  messages.value.push({
-    type: "ai",
-    content: "您好！有什么我可以帮助您的吗？",
-    time: getCurrentTime(),
-  });
+    // 添加欢迎消息
+    messages.value.push({
+      type: "ai",
+      content: "您好！有什么我可以帮助您的吗？",
+      time: getCurrentTime(),
+    });
 
-  // 滚动到底部
-  scrollToBottom(true);
+    // 滚动到底部
+    scrollToBottom(true);
+  } catch (error: any) {
+    ElMessage.error(`创建新会话失败: ${error.message}`);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 编辑会话主题
+const editTopic = (chat: UserConversation) => {
+  editingConversationId.value = chat.conversationId;
+  editingTopic.value = chat.topic;
+  editDialogVisible.value = true;
+};
+
+// 保存编辑后的主题
+const saveTopic = async () => {
+  if (!editingTopic.value.trim()) {
+    ElMessage.warning("会话主题不能为空");
+    return;
+  }
+
+  try {
+    savingTopic.value = true;
+    await updateConversationTopic(
+      editingConversationId.value,
+      editingTopic.value
+    );
+
+    // 更新本地会话列表中的主题
+    const index = chatHistory.value.findIndex(
+      (item) => item.conversationId === editingConversationId.value
+    );
+    if (index !== -1) {
+      chatHistory.value[index].topic = editingTopic.value;
+    }
+
+    editDialogVisible.value = false;
+    ElMessage.success("会话主题已更新");
+  } catch (error: any) {
+    ElMessage.error(`更新会话主题失败: ${error.message}`);
+  } finally {
+    savingTopic.value = false;
+  }
+};
+
+// 确认删除对话框
+const confirmDelete = (conversationId: string) => {
+  deletingConversationId.value = conversationId;
+  deleteDialogVisible.value = true;
+};
+
+// 执行删除操作
+const confirmDeleteAction = async () => {
+  try {
+    deletingConversation.value = true;
+    await deleteConversation(deletingConversationId.value);
+
+    // 如果删除的是当前会话，清空消息
+    if (deletingConversationId.value === currentConversationId.value) {
+      messages.value = [];
+      currentConversationId.value = "";
+    }
+
+    // 重新加载会话列表
+    await loadConversations();
+
+    deleteDialogVisible.value = false;
+    ElMessage.success("会话已删除");
+  } catch (error: any) {
+    ElMessage.error(`删除会话失败: ${error.message}`);
+  } finally {
+    deletingConversation.value = false;
+  }
 };
 
 // 获取格式化的当前时间
@@ -232,33 +440,64 @@ const getCurrentTime = (): string => {
   return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
+// 分页切换
+const handlePageChange = async (page: number) => {
+  currentPage.value = page;
+  await loadConversations();
+};
+
+// 加载会话历史记录
+const loadConversations = async () => {
+  try {
+    console.log(
+      "开始加载会话历史，页码:",
+      currentPage.value,
+      "每页数量:",
+      pageSize.value
+    );
+
+    const response = await getConversationHistory(
+      currentPage.value,
+      pageSize.value
+    );
+
+    console.log("获取到的会话历史:", response);
+    chatHistory.value = response.records || [];
+    totalConversations.value = response.total || 0;
+
+    // 如果没有选中的会话但有会话记录，自动选中第一个
+    if (!currentConversationId.value && chatHistory.value.length > 0) {
+      currentConversationId.value = chatHistory.value[0].conversationId;
+    }
+  } catch (error: any) {
+    console.error("加载会话历史记录失败:", error);
+    ElMessage.error(`加载会话历史失败: ${error.message}`);
+  }
+};
+
 // 修改：滚动到底部的函数
 const scrollToBottom = async (forceScroll = false) => {
   await nextTick();
   if (messageArea.value && (forceScroll || !userScrolling.value)) {
-    isScrolling.value = true; // 标记正在滚动，防止按钮闪烁
-
+    isScrolling.value = true;
     messageArea.value.scrollTop = messageArea.value.scrollHeight;
-
-    // 滚动动画完成后重置标记
     setTimeout(() => {
       isScrolling.value = false;
-    }, 300); // 300ms与CSS中的滚动动画时间匹配
+    }, 300);
   }
 };
 
 // 按钮点击事件：强制滚动到底部并启用自动滚动
 const handleScrollToBottom = () => {
-  userScrolling.value = false; // 重置滚动状态
-  scrollToBottom(true); // 强制滚动到底部
-  showScrollButton.value = false; // 隐藏按钮
+  userScrolling.value = false;
+  scrollToBottom(true);
+  showScrollButton.value = false;
 };
 
 // 处理用户滚动事件
 const handleScroll = () => {
   if (!messageArea.value || isScrolling.value) return;
 
-  // 检测是否到达底部
   const isAtBottom =
     Math.abs(
       messageArea.value.scrollHeight -
@@ -266,7 +505,6 @@ const handleScroll = () => {
         messageArea.value.clientHeight
     ) < 10;
 
-  // 如果不在底部，显示滚动按钮
   if (!isAtBottom) {
     userScrolling.value = true;
     showScrollButton.value = true;
@@ -278,7 +516,12 @@ const handleScroll = () => {
 
 // 发送消息
 const sendMessage = async () => {
-  if (!userInput.value.trim() || isLoading.value) return;
+  if (
+    !userInput.value.trim() ||
+    isLoading.value ||
+    !currentConversationId.value
+  )
+    return;
 
   // 添加用户消息
   messages.value.push({
@@ -303,20 +546,36 @@ const sendMessage = async () => {
     let aiResponse = "";
 
     // 使用封装的API发送请求
-    await sendChatMessage(userMessage, (chunk) => {
+    await sendChatMessage(userMessage, currentConversationId.value, (chunk) => {
       aiResponse += chunk;
       messages.value[aiMessageIndex].content = aiResponse;
       scrollToBottom();
     });
 
-    // 如果是第一条消息，更新对话标题
-    if (messages.value.length <= 3) {
-      const activeChat = chatHistory.value.find((chat) => chat.active);
-      if (activeChat && activeChat.title === "新对话") {
-        activeChat.title =
-          userMessage.length > 15
-            ? userMessage.substring(0, 15) + "..."
-            : userMessage;
+    // 如果是第一条消息且主题是"新对话"，更新会话主题
+    const currentChat = chatHistory.value.find(
+      (c) => c.conversationId === currentConversationId.value
+    );
+    if (
+      currentChat &&
+      currentChat.topic === "新对话" &&
+      messages.value.length <= 3
+    ) {
+      const newTopic =
+        userMessage.length > 15
+          ? userMessage.substring(0, 15) + "..."
+          : userMessage;
+      try {
+        await updateConversationTopic(currentConversationId.value, newTopic);
+        // 更新本地会话列表
+        const index = chatHistory.value.findIndex(
+          (c) => c.conversationId === currentConversationId.value
+        );
+        if (index !== -1) {
+          chatHistory.value[index].topic = newTopic;
+        }
+      } catch (error: any) {
+        console.error("更新会话主题失败:", error);
       }
     }
   } catch (error: any) {
@@ -335,16 +594,6 @@ const sendMessage = async () => {
   }
 };
 
-// 清空对话
-const clearMessages = () => {
-  messages.value = [];
-  messages.value.push({
-    type: "ai",
-    content: "对话已清空，有什么我可以帮助您的吗？",
-    time: getCurrentTime(),
-  });
-};
-
 // 获取用户信息
 const fetchUserInfo = async () => {
   try {
@@ -359,16 +608,20 @@ const fetchUserInfo = async () => {
 
 // 组件挂载
 onMounted(async () => {
-  // 添加欢迎消息
-  messages.value.push({
-    type: "ai",
-    content:
-      "你好！我是爱丽丝，有什么可以帮助你的吗？\n\n你可以尝试向我提问，例如：\n\n* 前端开发技巧\n* 如何优化Vue应用\n* 解释一段代码",
-    time: getCurrentTime(),
-  });
-
   // 获取用户信息和头像
   await fetchUserInfo();
+
+  // 加载历史会话
+  await loadConversations();
+
+  // 如果有会话记录，显示欢迎消息
+  if (currentConversationId.value) {
+    messages.value.push({
+      type: "ai",
+      content: "您好！有什么我可以帮助您的吗？",
+      time: getCurrentTime(),
+    });
+  }
 
   // 添加滚动事件监听
   if (messageArea.value) {
@@ -427,7 +680,8 @@ onUnmounted(() => {
   cursor: pointer;
   border-left: 3px solid transparent;
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
   transition: all 0.2s ease;
 }
 
@@ -438,6 +692,13 @@ onUnmounted(() => {
 .history-item.active {
   background-color: #e6f7ff;
   border-left-color: #1890ff;
+}
+
+.history-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .history-title {
@@ -452,6 +713,35 @@ onUnmounted(() => {
 .history-time {
   font-size: 12px;
   color: #999;
+}
+
+.history-actions {
+  display: flex;
+  gap: 8px;
+  color: #999;
+  visibility: hidden;
+}
+
+.history-item:hover .history-actions {
+  visibility: visible;
+}
+
+.history-actions .el-icon {
+  font-size: 16px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.history-actions .el-icon:hover {
+  color: #1890ff;
+}
+
+/* 分页样式 */
+.pagination {
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid #eee;
 }
 
 /* 右侧主聊天区域 */
