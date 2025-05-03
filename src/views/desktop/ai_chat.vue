@@ -346,12 +346,37 @@ const switchChat = async (conversationId: string) => {
           // 添加历史消息
           messages.value = [...chatHistory];
 
-          // 如果有生成中的内容缓存，将它附加到最后一条AI消息
+          // 如果有生成中的内容缓存，需要确保它被添加到正确位置
           if (generatingContentCache.value.has(conversationId)) {
-            const lastAiMessageIndex = findLastAiMessageIndex(messages.value);
-            if (lastAiMessageIndex !== -1) {
-              messages.value[lastAiMessageIndex].content =
-                generatingContentCache.value.get(conversationId);
+            // 找到最后一组用户-AI消息对
+            let userMsgIndex = -1;
+            for (let i = messages.value.length - 1; i >= 0; i--) {
+              if (messages.value[i].type === "user") {
+                userMsgIndex = i;
+                break;
+              }
+            }
+
+            // 如果找到了用户消息，检查是否有紧跟的AI消息
+            if (userMsgIndex !== -1) {
+              const aiMsgIndex = userMsgIndex + 1;
+
+              // 如果AI消息已存在，更新它的内容
+              if (
+                aiMsgIndex < messages.value.length &&
+                messages.value[aiMsgIndex].type === "ai"
+              ) {
+                messages.value[aiMsgIndex].content =
+                  generatingContentCache.value.get(conversationId);
+              }
+              // 如果AI消息不存在，插入一个新的AI消息
+              else if (aiMsgIndex === messages.value.length) {
+                messages.value.push({
+                  type: "ai",
+                  content: generatingContentCache.value.get(conversationId),
+                  time: getCurrentTime(),
+                });
+              }
             }
           }
 
@@ -360,12 +385,7 @@ const switchChat = async (conversationId: string) => {
         }
       } catch (error) {
         console.error("获取生成中的对话失败:", error);
-
-        // 如果获取失败但有普通缓存，使用缓存
-        if (messageCache.value.has(conversationId)) {
-          messages.value = [...messageCache.value.get(conversationId)];
-          isGenerating.value = true;
-        }
+        // 其余错误处理保持不变...
       }
     } else if (messageCache.value.has(conversationId)) {
       // 不在生成中且有缓存，直接使用缓存
@@ -382,23 +402,15 @@ const switchChat = async (conversationId: string) => {
           // 缓存这些消息
           messageCache.value.set(conversationId, [...messages.value]);
         } else {
-          // 如果没有历史消息，添加初始消息
-          messages.value.push({
-            type: "ai",
-            content: "已切换到此会话，请继续您的问题...",
-            time: getCurrentTime(),
-          });
-          // 缓存初始消息
-          messageCache.value.set(conversationId, [...messages.value]);
+          // 如果没有历史消息，不添加任何提示，保持空白状态
+          messages.value = []; // 不添加欢迎消息
+          // 仍然缓存空数组
+          messageCache.value.set(conversationId, []);
         }
       } catch (error: any) {
         console.error("获取对话历史失败:", error);
-        // 发生错误时显示提示消息
-        messages.value.push({
-          type: "ai",
-          content: "已切换到此会话，请继续您的问题...",
-          time: getCurrentTime(),
-        });
+        // 发生错误时也不显示提示消息
+        messages.value = []; // 保持空白
       }
     }
 
