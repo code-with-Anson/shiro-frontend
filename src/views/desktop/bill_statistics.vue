@@ -39,6 +39,17 @@
             @change="handleYearChange"
           />
         </el-config-provider>
+
+        <!-- 添加AI分析按钮 -->
+        <el-button
+          type="primary"
+          :icon="ChatLineRound"
+          @click="handleAiAnalysis"
+          style="margin-left: 16px"
+          :loading="isAnalyzing"
+        >
+          AI分析
+        </el-button>
       </div>
     </div>
 
@@ -154,6 +165,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from "vue";
+import { useRouter } from "vue-router"; // 添加路由导入
 import { ElMessage } from "element-plus";
 // 导入 Element Plus 中文语言包
 import zhCn from "element-plus/dist/locale/zh-cn.mjs";
@@ -171,6 +183,13 @@ import {
   getMonthStatistics,
   getYearStatistics,
 } from "@/api/statistics";
+// 导入ChatLineRound图标和MarkdownIt
+import { ChatLineRound } from "@element-plus/icons-vue";
+import MarkdownIt from "markdown-it";
+// 导入AI账单分析API
+import { analyzeBillData, createConversation } from "@/api/aiChat";
+
+const router = useRouter();
 
 // 注册ECharts组件
 echarts.use([
@@ -183,11 +202,28 @@ echarts.use([
   CanvasRenderer,
 ]);
 
+// 创建markdown-it实例
+const md = new MarkdownIt({
+  html: true,
+  breaks: true,
+  linkify: true,
+  typographer: true,
+});
+
+// 渲染markdown函数
+const renderMarkdown = (content) => {
+  if (!content) return "";
+  return md.render(content);
+};
+
 // 时间范围选择
 const timeRange = ref<"week" | "month" | "year">("week");
 const monthDate = ref<Date | string>(new Date());
 const yearDate = ref<Date | string>(new Date());
 const loading = ref(true);
+const isAnalyzing = ref(false);
+const analysisDialogVisible = ref(false);
+const analysisResult = ref<string | null>(null);
 
 // 图表DOM引用
 const trendChartRef = ref<HTMLElement | null>(null);
@@ -740,6 +776,123 @@ const resizeCharts = () => {
   incomePieChart?.resize();
 };
 
+// AI分析处理函数
+const handleAiAnalysis = async () => {
+  if (isAnalyzing.value) return;
+
+  try {
+    isAnalyzing.value = true;
+
+    // 获取并格式化数据
+    let dataToAnalyze;
+    let timeDescription;
+
+    // 根据当前选择的时间范围获取数据并格式化
+    switch (timeRange.value) {
+      case "week":
+        dataToAnalyze = formatAnalysisData(weekData.value);
+        timeDescription = "过去一周";
+        break;
+      case "month":
+        dataToAnalyze = formatAnalysisData(monthData.value);
+        timeDescription = `${monthData.value.year}年${monthData.value.month}月`;
+        break;
+      case "year":
+        dataToAnalyze = formatAnalysisData(yearData.value);
+        timeDescription = `${yearData.value.year}年`;
+        break;
+    }
+
+    // 创建新的聊天会话
+    const conversationId = await createConversation(
+      `${timeDescription}账单分析`
+    );
+
+    if (!conversationId) {
+      ElMessage.error("创建AI分析会话失败");
+      return;
+    }
+
+    // 准备要发送到AI聊天页面的数据
+    const analysisData = {
+      data: dataToAnalyze,
+      timeRange: timeRange.value,
+      timeDescription: timeDescription,
+    };
+
+    // 将分析数据保存到localStorage，以便在AI聊天页面获取
+    localStorage.setItem("billAnalysisData", JSON.stringify(analysisData));
+
+    // 跳转到AI聊天页面
+    router.push({
+      name: "ai_chat",
+      query: {
+        conversationId: conversationId,
+        mode: "analysis",
+        timeRange: timeRange.value,
+        timeDesc: timeDescription,
+      },
+    });
+  } catch (error) {
+    console.error("准备AI分析失败:", error);
+    ElMessage.error("启动AI分析失败，请稍后再试");
+  } finally {
+    isAnalyzing.value = false;
+  }
+};
+
+// 添加数据格式化函数
+const formatAnalysisData = (data) => {
+  // 创建一个深拷贝以避免修改原始数据
+  const formattedData = JSON.parse(JSON.stringify(data));
+
+  // 格式化顶层数字字段
+  ["totalExpense", "totalIncome", "netIncome"].forEach((key) => {
+    if (typeof formattedData[key] === "number") {
+      formattedData[key] = Number(formattedData[key].toFixed(2));
+    }
+  });
+
+  // 格式化支出分类详情
+  if (formattedData.expenseCategoryDetails) {
+    for (const category in formattedData.expenseCategoryDetails) {
+      formattedData.expenseCategoryDetails[category] = Number(
+        Number(formattedData.expenseCategoryDetails[category]).toFixed(2)
+      );
+    }
+  }
+
+  // 格式化收入分类详情
+  if (formattedData.incomeCategoryDetails) {
+    for (const category in formattedData.incomeCategoryDetails) {
+      formattedData.incomeCategoryDetails[category] = Number(
+        Number(formattedData.incomeCategoryDetails[category]).toFixed(2)
+      );
+    }
+  }
+
+  // 格式化每日数据
+  if (formattedData.dailyData && Array.isArray(formattedData.dailyData)) {
+    formattedData.dailyData = formattedData.dailyData.map((day) => ({
+      ...day,
+      income: Number(Number(day.income).toFixed(2)),
+      expense: Number(Number(day.expense).toFixed(2)),
+    }));
+  }
+
+  // 格式化月度数据
+  if (formattedData.monthDetails && Array.isArray(formattedData.monthDetails)) {
+    formattedData.monthDetails = formattedData.monthDetails.map((month) => ({
+      ...month,
+      income: Number(Number(month.income).toFixed(2)),
+      expense: Number(Number(month.expense).toFixed(2)),
+      netIncome: Number(Number(month.netIncome || 0).toFixed(2)),
+    }));
+  }
+
+  return formattedData;
+};
+
 // 生命周期钩子
 onMounted(async () => {
   // 确保 DOM 准备好后再初始化图表
@@ -876,6 +1029,66 @@ onUnmounted(() => {
   padding: 20px 0;
 }
 
+.ai-analysis-content {
+  min-height: 300px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.analysis-loading {
+  padding: 20px;
+}
+
+.text-center {
+  text-align: center;
+  margin-top: 20px;
+  color: #909399;
+}
+
+:deep(.markdown-body) {
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  word-wrap: break-word;
+  padding: 16px;
+}
+
+:deep(.markdown-body h1),
+:deep(.markdown-body h2),
+:deep(.markdown-body h3),
+:deep(.markdown-body h4) {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+:deep(.markdown-body table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+}
+
+:deep(.markdown-body table th),
+:deep(.markdown-body table td) {
+  border: 1px solid #dfe2e5;
+  padding: 6px 13px;
+}
+
+:deep(.markdown-body table tr:nth-child(2n)) {
+  background-color: #f6f8fa;
+}
+
+.analysis-result {
+  margin-top: 20px;
+}
+
+.dialog-footer {
+  text-align: right;
+}
+
 @media (max-width: 768px) {
   .header-container {
     flex-direction: column;
@@ -899,5 +1112,51 @@ onUnmounted(() => {
   .category-section .chart-card:last-child {
     margin-bottom: 0;
   }
+}
+
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial,
+    sans-serif;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.markdown-body h1 {
+  margin-top: 0;
+  padding-bottom: 0.3em;
+  font-size: 2em;
+  border-bottom: 1px solid #eaecef;
+}
+
+.markdown-body h2 {
+  padding-bottom: 0.3em;
+  font-size: 1.5em;
+  border-bottom: 1px solid #eaecef;
+}
+
+.markdown-body h3 {
+  font-size: 1.25em;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 2em;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  border: 1px solid #dfe2e5;
+  padding: 6px 13px;
+  text-align: left;
+}
+
+.markdown-body table tr:nth-child(2n) {
+  background-color: #f6f8fa;
 }
 </style>

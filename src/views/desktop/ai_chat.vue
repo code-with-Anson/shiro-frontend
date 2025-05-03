@@ -205,6 +205,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, onUnmounted, watch } from "vue";
 import { ElMessage } from "element-plus";
+import { useRoute } from "vue-router";
 import {
   Delete,
   Edit,
@@ -282,6 +283,9 @@ const savingTopic = ref<boolean>(false);
 const deleteDialogVisible = ref<boolean>(false);
 const deletingConversationId = ref<string>("");
 const deletingConversation = ref<boolean>(false);
+
+// 路由对象
+const route = useRoute();
 
 // 切换对话
 const switchChat = async (conversationId: string) => {
@@ -711,12 +715,183 @@ const fetchUserInfo = async () => {
   }
 };
 
+// 发送分析提示
+const sendAnalysisPrompt = async (billData, timeRange, timeDescription) => {
+  try {
+    isSending.value = true;
+    isGenerating.value = true;
+
+    // 准备发送给AI的消息
+    let prompt = `我需要你作为一个财务分析专家，分析以下${timeDescription}的账单数据：\n\n`;
+
+    // 添加基本财务信息
+    prompt += `总收入: ${billData.totalIncome} 元\n`;
+    prompt += `总支出: ${billData.totalExpense} 元\n`;
+    prompt += `净收入: ${billData.netIncome} 元\n\n`;
+
+    // 添加支出分类明细
+    if (
+      billData.expenseCategoryDetails &&
+      Object.keys(billData.expenseCategoryDetails).length > 0
+    ) {
+      prompt += "**支出分类明细**:\n";
+      Object.entries(billData.expenseCategoryDetails).forEach(
+        ([category, amount]) => {
+          prompt += `- ${category}: ${amount} 元\n`;
+        }
+      );
+      prompt += "\n";
+    }
+
+    // 添加收入分类明细
+    if (
+      billData.incomeCategoryDetails &&
+      Object.keys(billData.incomeCategoryDetails).length > 0
+    ) {
+      prompt += "**收入分类明细**:\n";
+      Object.entries(billData.incomeCategoryDetails).forEach(
+        ([category, amount]) => {
+          prompt += `- ${category}: ${amount} 元\n`;
+        }
+      );
+      prompt += "\n";
+    }
+
+    // 添加时间维度数据
+    if (timeRange === "week" && billData.dailyData) {
+      prompt += "**每日收支数据**:\n";
+      billData.dailyData.forEach((day) => {
+        const date = new Date(day.date);
+        const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
+        prompt += `- ${formattedDate}: 收入 ${day.income} 元, 支出 ${day.expense} 元\n`;
+      });
+    } else if (timeRange === "month" && billData.dailyData) {
+      prompt += "**每日收支数据**:\n";
+      billData.dailyData.forEach((day) => {
+        const date = new Date(day.date);
+        const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
+        prompt += `- ${formattedDate}: 收入 ${day.income} 元, 支出 ${day.expense} 元\n`;
+      });
+    } else if (timeRange === "year" && billData.monthDetails) {
+      prompt += "**每月收支数据**:\n";
+      billData.monthDetails.forEach((month) => {
+        prompt += `- ${month.month}月: 收入 ${month.income} 元, 支出 ${month.expense} 元\n`;
+      });
+    }
+
+    prompt += "\n请对这些财务数据进行详细分析，包括但不限于：\n";
+    prompt += "1. 总体收支情况评估\n";
+    prompt += "2. 主要支出类别分析\n";
+    prompt += "3. 收入来源分析\n";
+    prompt += "4. 时间趋势分析\n";
+    prompt += "5. 财务健康度评估\n";
+    prompt += "6. 针对性的理财建议\n";
+    prompt +=
+      "\n请用清晰的标题和小节组织你的分析，并尽可能提供实用的改进建议。";
+
+    // 添加用户消息（隐藏完整提示，只显示简短版本）
+    messages.value.push({
+      type: "user",
+      content: `请分析我的${timeDescription}账单数据`,
+      time: getCurrentTime(),
+    });
+
+    // 创建AI消息占位
+    const aiMessageIndex = messages.value.length;
+    messages.value.push({
+      type: "ai",
+      content: "",
+      time: getCurrentTime(),
+    });
+
+    let aiResponse = "";
+
+    // 使用封装的API发送请求
+    await sendChatMessage(
+      prompt,
+      currentConversationId.value,
+      (chunk) => {
+        aiResponse += chunk;
+        messages.value[aiMessageIndex].content = aiResponse;
+        scrollToBottom();
+      },
+      // 响应完成回调
+      () => {
+        isGenerating.value = false;
+        isSending.value = false;
+      },
+      // 错误处理
+      (error) => {
+        console.error("账单分析请求失败:", error);
+        ElMessage({
+          message: `分析请求失败: ${error.message}`,
+          type: "error",
+        });
+
+        messages.value.push({
+          type: "system",
+          content: "账单分析出错，请稍后重试...",
+          time: getCurrentTime(),
+        });
+
+        isGenerating.value = false;
+        isSending.value = false;
+      }
+    );
+  } catch (error) {
+    console.error("发送分析提示失败:", error);
+    isGenerating.value = false;
+    isSending.value = false;
+  }
+};
+
 // 组件挂载
 onMounted(async () => {
   // 获取用户信息和头像
   await fetchUserInfo();
 
-  // 加载历史会话
+  // 检查是否从账单分析跳转而来 - 使用顶层定义的route变量
+  if (route.query.mode === "analysis" && route.query.conversationId) {
+    const analysisConversationId = route.query.conversationId as string;
+    const timeRange = route.query.timeRange as string;
+    const timeDesc = route.query.timeDesc as string;
+
+    // 从localStorage获取分析数据
+    const analysisDataStr = localStorage.getItem("billAnalysisData");
+    if (analysisDataStr) {
+      try {
+        // 解析分析数据
+        const analysisData = JSON.parse(analysisDataStr);
+
+        // 设置当前会话ID
+        currentConversationId.value = analysisConversationId;
+
+        // 清除localStorage中的分析数据
+        localStorage.removeItem("billAnalysisData");
+
+        // 创建自动欢迎消息
+        messages.value.push({
+          type: "ai",
+          content: `正在为您分析${timeDesc}的账单数据...`,
+          time: getCurrentTime(),
+        });
+
+        // 准备给AI的提示
+        await sendAnalysisPrompt(analysisData.data, timeRange, timeDesc);
+
+        // 加载会话历史记录
+        await loadConversations();
+
+        // 滚动到底部
+        scrollToBottom(true);
+        return; // 跳过下方常规初始化逻辑
+      } catch (error) {
+        console.error("处理账单分析数据失败:", error);
+      }
+    }
+  }
+
+  // 常规初始化逻辑...
   await loadConversations();
 
   // 如果有选中的会话，加载对话历史记录而不是显示欢迎消息

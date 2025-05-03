@@ -355,3 +355,116 @@ export function getCurrentTime(): string {
   const now = new Date();
   return now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
+
+/**
+ * AI分析账单数据
+ * @param billData 账单数据
+ * @param timeRange 时间范围('week'|'month'|'year')
+ * @param timeDescription 时间描述，如"2025年5月"
+ * @returns 分析结果文本
+ */
+export async function analyzeBillData(
+  billData: any,
+  timeRange: "week" | "month" | "year",
+  timeDescription: string
+): Promise<string> {
+  try {
+    // 创建一个新的会话用于分析
+    const conversationId = await createConversation(
+      `${timeDescription}账单分析`
+    );
+
+    // 准备发送给AI的消息
+    let prompt = `我需要你作为一个财务分析专家，分析以下${timeDescription}的账单数据：\n\n`;
+
+    // 添加基本财务信息
+    prompt += `总收入: ${billData.totalIncome} 元\n`;
+    prompt += `总支出: ${billData.totalExpense} 元\n`;
+    prompt += `净收入: ${billData.netIncome} 元\n\n`;
+
+    // 添加支出分类明细
+    if (
+      billData.expenseCategoryDetails &&
+      Object.keys(billData.expenseCategoryDetails).length > 0
+    ) {
+      prompt += "**支出分类明细**:\n";
+      Object.entries(billData.expenseCategoryDetails).forEach(
+        ([category, amount]) => {
+          prompt += `- ${category}: ${amount} 元\n`;
+        }
+      );
+      prompt += "\n";
+    }
+
+    // 添加收入分类明细
+    if (
+      billData.incomeCategoryDetails &&
+      Object.keys(billData.incomeCategoryDetails).length > 0
+    ) {
+      prompt += "**收入分类明细**:\n";
+      Object.entries(billData.incomeCategoryDetails).forEach(
+        ([category, amount]) => {
+          prompt += `- ${category}: ${amount} 元\n`;
+        }
+      );
+      prompt += "\n";
+    }
+
+    // 添加时间维度数据
+    if (timeRange === "week" && billData.dailyData) {
+      prompt += "**每日收支数据**:\n";
+      billData.dailyData.forEach((day: any) => {
+        const date = new Date(day.date);
+        const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
+        prompt += `- ${formattedDate}: 收入 ${day.income} 元, 支出 ${day.expense} 元\n`;
+      });
+    } else if (timeRange === "month" && billData.dailyData) {
+      prompt += "**每日收支数据**:\n";
+      billData.dailyData.forEach((day: any) => {
+        const date = new Date(day.date);
+        const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
+        prompt += `- ${formattedDate}: 收入 ${day.income} 元, 支出 ${day.expense} 元\n`;
+      });
+    } else if (timeRange === "year" && billData.monthDetails) {
+      prompt += "**每月收支数据**:\n";
+      billData.monthDetails.forEach((month: any) => {
+        prompt += `- ${month.month}月: 收入 ${month.income} 元, 支出 ${month.expense} 元\n`;
+      });
+    }
+
+    prompt += "\n请对这些财务数据进行详细分析，包括但不限于：\n";
+    prompt += "1. 总体收支情况评估\n";
+    prompt += "2. 主要支出类别分析\n";
+    prompt += "3. 收入来源分析\n";
+    prompt += "4. 时间趋势分析\n";
+    prompt += "5. 财务健康度评估\n";
+    prompt += "6. 针对性的理财建议\n";
+    prompt +=
+      "\n请用清晰的标题和小节组织你的分析，并尽可能提供实用的改进建议。";
+
+    // 存储AI回复
+    let aiResponse = "";
+
+    // 发送消息到AI并等待完整回复
+    await new Promise<void>((resolve, reject) => {
+      sendChatMessage(
+        prompt,
+        conversationId,
+        (chunk) => {
+          aiResponse += chunk;
+        },
+        () => {
+          resolve();
+        },
+        (error) => {
+          reject(error);
+        }
+      );
+    });
+
+    return aiResponse;
+  } catch (error: any) {
+    console.error("账单分析失败:", error);
+    throw new Error(error.message || "账单分析请求失败");
+  }
+}
