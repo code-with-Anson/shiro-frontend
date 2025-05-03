@@ -54,7 +54,7 @@
           layout="prev, pager, next"
           :total="totalConversations"
           :page-size="pageSize"
-          v-model:current-page="currentPage"
+          :current-page="currentPage"
           @current-change="handlePageChange"
         />
       </div>
@@ -442,7 +442,11 @@ const loadConversations = async () => {
 
     console.log("获取到的会话历史:", response);
     chatHistory.value = response.records || [];
+
+    // 确保正确设置总数，这是影响分页显示的关键
     totalConversations.value = response.total || 0;
+
+    console.log("设置总会话数:", totalConversations.value);
 
     // 如果没有选中的会话但有会话记录，自动选中第一个
     if (!currentConversationId.value && chatHistory.value.length > 0) {
@@ -627,13 +631,38 @@ onMounted(async () => {
   // 加载历史会话
   await loadConversations();
 
-  // 如果有会话记录，显示欢迎消息
+  // 如果有选中的会话，加载对话历史记录而不是显示欢迎消息
   if (currentConversationId.value) {
-    messages.value.push({
-      type: "ai",
-      content: "您好！有什么我可以帮助您的吗？",
-      time: getCurrentTime(),
-    });
+    try {
+      isLoading.value = true;
+      // 获取对话历史消息
+      const chatHistory = await getChatHistory(currentConversationId.value);
+
+      if (chatHistory && chatHistory.length > 0) {
+        // 添加历史消息
+        messages.value = chatHistory;
+      } else {
+        // 如果没有历史消息，添加初始欢迎消息
+        messages.value.push({
+          type: "ai",
+          content: "您好！有什么我可以帮助您的吗？",
+          time: getCurrentTime(),
+        });
+      }
+    } catch (error: any) {
+      console.error("获取对话历史失败:", error);
+      // 发生错误时，显示欢迎消息
+      messages.value.push({
+        type: "ai",
+        content: "您好！有什么我可以帮助您的吗？",
+        time: getCurrentTime(),
+      });
+    } finally {
+      isLoading.value = false;
+    }
+
+    // 滚动到底部
+    scrollToBottom(true);
   }
 
   // 添加滚动事件监听

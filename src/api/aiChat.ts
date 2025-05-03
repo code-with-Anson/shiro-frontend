@@ -146,21 +146,30 @@ export async function getConversationHistory(
   pageSize: number = 10
 ): Promise<PageResponse> {
   try {
+    console.log(`发送获取会话历史请求: 页码=${currentPage}, 每页=${pageSize}`);
+
     const response = await axiosInstance.post("/ai/user-conversation/history", {
       currentPage,
       pageSize,
     });
 
+    console.log("原始响应数据:", response.data);
+
     // 使用封装的判断函数检查响应状态
     if (isSuccessResponse(response.data.code)) {
       // 增加防御性代码处理可能的数据异常
       const data = response.data.data || {};
-      return {
+
+      // 确保能正确提取分页信息
+      const result = {
         records: Array.isArray(data.records) ? data.records : [],
         total: typeof data.total === "number" ? data.total : 0,
         size: typeof data.size === "number" ? data.size : pageSize,
         current: typeof data.current === "number" ? data.current : currentPage,
       };
+
+      console.log("处理后的分页数据:", result);
+      return result;
     } else {
       console.error("获取会话历史失败:", response.data);
       throw new Error(response.data.msg || "获取会话历史失败");
