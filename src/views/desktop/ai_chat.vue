@@ -845,12 +845,12 @@ const sendAnalysisPrompt = async (billData, timeRange, timeDescription) => {
   }
 };
 
-// 组件挂载
+// 修改onMounted中的代码块，调整执行顺序
 onMounted(async () => {
   // 获取用户信息和头像
   await fetchUserInfo();
 
-  // 检查是否从账单分析跳转而来 - 使用顶层定义的route变量
+  // 检查是否从账单分析跳转而来
   if (route.query.mode === "analysis" && route.query.conversationId) {
     const analysisConversationId = route.query.conversationId as string;
     const timeRange = route.query.timeRange as string;
@@ -869,6 +869,9 @@ onMounted(async () => {
         // 清除localStorage中的分析数据
         localStorage.removeItem("billAnalysisData");
 
+        // 先加载会话历史记录，不等待分析完成
+        await loadConversations();
+
         // 创建自动欢迎消息
         messages.value.push({
           type: "ai",
@@ -876,11 +879,8 @@ onMounted(async () => {
           time: getCurrentTime(),
         });
 
-        // 准备给AI的提示
-        await sendAnalysisPrompt(analysisData.data, timeRange, timeDesc);
-
-        // 加载会话历史记录
-        await loadConversations();
+        // 准备给AI的提示 - 不使用await，允许它在后台运行
+        sendAnalysisPrompt(analysisData.data, timeRange, timeDesc);
 
         // 滚动到底部
         scrollToBottom(true);
