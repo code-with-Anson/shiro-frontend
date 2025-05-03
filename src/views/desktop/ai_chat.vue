@@ -48,14 +48,19 @@
         </div>
       </div>
 
-      <div class="pagination" v-if="chatHistory.length > 0">
+      <div
+        class="pagination"
+        v-if="chatHistory.length > 0 || totalConversations > pageSize"
+      >
         <el-pagination
-          small
+          :size="'small'"
+          :background="true"
           layout="prev, pager, next"
           :total="totalConversations"
           :page-size="pageSize"
+          :pager-count="5"
           :current-page="currentPage"
-          @current-change="handlePageChange"
+          @update:current-page="handlePageChange"
         />
       </div>
     </div>
@@ -264,7 +269,7 @@ const chatHistory = ref<UserConversation[]>([]);
 const currentConversationId = ref<string>("");
 const totalConversations = ref<number>(0);
 const currentPage = ref<number>(1);
-const pageSize = ref<number>(10);
+const pageSize = ref<number>(8);
 
 // 编辑主题相关
 const editDialogVisible = ref<boolean>(false);
@@ -421,40 +426,87 @@ const confirmDeleteAction = async () => {
 
 // 分页切换
 const handlePageChange = async (page: number) => {
-  currentPage.value = page;
-  await loadConversations();
+  console.log("页码变更为:", page);
+
+  try {
+    // 显示加载状态
+    isLoading.value = true;
+
+    // 设置新页码
+    currentPage.value = page;
+
+    // 重置选中的会话
+    currentConversationId.value = "";
+
+    // 清空消息列表
+    messages.value = [];
+
+    // 强制重置会话列表，确保Vue注意到数据变化
+    chatHistory.value = [];
+
+    // 等待UI更新
+    await nextTick();
+
+    // 重新加载会话列表
+    await loadConversations();
+
+    console.log("页面切换后的会话列表:", chatHistory.value);
+  } catch (error) {
+    console.error("切换页面失败:", error);
+    ElMessage.error("加载页面数据失败，请重试");
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 // 加载会话历史记录
 const loadConversations = async () => {
   try {
     console.log(
-      "开始加载会话历史，页码:",
+      "开始加载会话历史，当前页:",
       currentPage.value,
       "每页数量:",
       pageSize.value
     );
 
+    // 先清空列表，确保UI更新
+    chatHistory.value = [];
+
+    // 获取指定页的会话历史
     const response = await getConversationHistory(
       currentPage.value,
       pageSize.value
     );
 
-    console.log("获取到的会话历史:", response);
-    chatHistory.value = response.records || [];
+    console.log("API返回的会话列表数据:", response);
 
-    // 确保正确设置总数，这是影响分页显示的关键
-    totalConversations.value = response.total || 0;
-
-    console.log("设置总会话数:", totalConversations.value);
-
-    // 如果没有选中的会话但有会话记录，自动选中第一个
-    if (!currentConversationId.value && chatHistory.value.length > 0) {
-      currentConversationId.value = chatHistory.value[0].conversationId;
+    // 使用全新的数组引用，确保Vue检测到变化
+    if (Array.isArray(response.records)) {
+      chatHistory.value = [...response.records];
+    } else {
+      chatHistory.value = [];
+      console.warn("API返回的records不是数组:", response.records);
     }
-  } catch (error: any) {
-    console.error("加载会话历史记录失败:", error);
-    ElMessage.error(`加载会话历史失败: ${error.message}`);
+
+    // 更新总数
+    totalConversations.value = parseInt(String(response.total || "0"));
+
+    console.log("更新后的会话列表:", chatHistory.value);
+
+    // 如果有会话但没有选中任何会话，则选中第一个
+    if (chatHistory.value.length > 0 && !currentConversationId.value) {
+      await switchChat(chatHistory.value[0].conversationId);
+    }
+  } catch (error) {
+    console.error("加载会话历史失败:", error);
+    ElMessage.error(
+      typeof error === "object" && error !== null && "message" in error
+        ? `加载会话历史失败: ${(error as Error).message}`
+        : "加载会话历史失败"
+    );
+
+    // 确保即使出错也清空会话列表，防止显示旧数据
+    chatHistory.value = [];
   }
 };
 

@@ -16,6 +16,7 @@ export interface PageResponse {
   total: number;
   size: number;
   current: number;
+  pages?: number; // 添加总页数字段
 }
 
 // 聊天消息接口定义
@@ -143,44 +144,46 @@ export async function createConversation(
  */
 export async function getConversationHistory(
   currentPage: number = 1,
-  pageSize: number = 10
+  pageSize: number = 8
 ): Promise<PageResponse> {
   try {
-    console.log(`发送获取会话历史请求: 页码=${currentPage}, 每页=${pageSize}`);
+    // 强制确保参数是数字类型
+    const numericCurrentPage = Number(currentPage);
+    const numericPageSize = Number(pageSize);
+
+    console.log(
+      `发送获取会话历史请求: 页码=${numericCurrentPage}, 每页=${numericPageSize}`
+    );
 
     const response = await axiosInstance.post("/ai/user-conversation/history", {
-      currentPage,
-      pageSize,
+      currentPage: numericCurrentPage,
+      pageSize: numericPageSize,
     });
 
-    console.log("原始响应数据:", response.data);
+    // 打印更详细的响应信息，帮助调试
+    console.log("API原始返回数据:", response.data);
 
-    // 使用封装的判断函数检查响应状态
     if (isSuccessResponse(response.data.code)) {
-      // 增加防御性代码处理可能的数据异常
+      // 确保返回数字类型
       const data = response.data.data || {};
-
-      // 确保能正确提取分页信息
-      const result = {
+      return {
         records: Array.isArray(data.records) ? data.records : [],
-        total: typeof data.total === "number" ? data.total : 0,
-        size: typeof data.size === "number" ? data.size : pageSize,
-        current: typeof data.current === "number" ? data.current : currentPage,
+        total: parseInt(data.total) || 0,
+        size: parseInt(data.size) || numericPageSize,
+        current: parseInt(data.current) || numericCurrentPage,
+        pages:
+          parseInt(data.pages) ||
+          Math.ceil(parseInt(data.total || "0") / numericPageSize),
       };
-
-      console.log("处理后的分页数据:", result);
-      return result;
     } else {
       console.error("获取会话历史失败:", response.data);
       throw new Error(response.data.msg || "获取会话历史失败");
     }
   } catch (error: any) {
     console.error("获取会话历史异常:", error);
-    if (error.response?.data) {
-      throw new Error(error.response.data.msg || "获取会话历史失败");
-    } else {
-      throw new Error("网络错误，获取会话历史失败");
-    }
+    throw new Error(
+      error.response?.data?.msg || error.message || "获取会话历史失败"
+    );
   }
 }
 
