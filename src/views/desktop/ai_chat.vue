@@ -36,10 +36,10 @@
             <span class="history-time">{{ formatTime(chat.createTime) }}</span>
           </div>
           <div class="history-actions">
-            <el-tooltip content="编辑主题" placement="top" :hide-after="1500">
+            <el-tooltip content="编辑主题" placement="top" :hide-after="100">
               <el-icon @click.stop="editTopic(chat)"><Edit /></el-icon>
             </el-tooltip>
-            <el-tooltip content="删除对话" placement="top" :hide-after="1500">
+            <el-tooltip content="删除对话" placement="top" :hide-after="100">
               <el-icon @click.stop="confirmDelete(chat.conversationId)"
                 ><Delete
               /></el-icon>
@@ -263,6 +263,7 @@ const userAvatar = ref<string>("");
 const userScrolling = ref(false);
 const showScrollButton = ref(false);
 const isScrolling = ref(false);
+const requestingConversationId = ref<string>(""); // 新增变量
 
 // 会话管理相关状态
 const chatHistory = ref<UserConversation[]>([]);
@@ -288,6 +289,11 @@ const switchChat = async (conversationId: string) => {
 
   try {
     isLoading.value = true;
+
+    // 重置生成状态，防止旧会话的加载动画继续显示
+    isGenerating.value = false;
+
+    // 更新当前会话ID
     currentConversationId.value = conversationId;
 
     // 清空当前消息
@@ -592,6 +598,9 @@ const sendMessage = async () => {
   isSending.value = true;
   isGenerating.value = true;
 
+  // 记录当前进行请求的会话ID
+  requestingConversationId.value = currentConversationId.value;
+
   try {
     // 创建AI消息占位
     const aiMessageIndex = messages.value.length;
@@ -607,13 +616,40 @@ const sendMessage = async () => {
     await sendChatMessage(
       userMessage,
       currentConversationId.value,
-      (chunk) => {
-        aiResponse += chunk;
-        messages.value[aiMessageIndex].content = aiResponse;
-        scrollToBottom();
+      (chunk, responseConversationId) => {
+        // 检查响应的会话ID是否匹配当前活动的会话ID
+        if (responseConversationId === currentConversationId.value) {
+          aiResponse += chunk;
+          messages.value[aiMessageIndex].content = aiResponse;
+          scrollToBottom();
+        }
       },
       // 响应完成回调
-      () => {
+      (responseConversationId) => {
+        if (responseConversationId === currentConversationId.value) {
+          isGenerating.value = false;
+        }
+        // 无论如何都重置发送状态
+        isSending.value = false;
+      },
+      // 错误处理
+      (error, responseConversationId) => {
+        console.error("聊天请求失败:", error);
+
+        // 只有当错误是关于当前会话时才显示错误消息
+        if (responseConversationId === currentConversationId.value) {
+          ElMessage({
+            message: `聊天请求失败: ${error.message}`,
+            type: "error",
+          });
+          messages.value.push({
+            type: "system",
+            content: "通信出错！与AI的连接似乎断开了...",
+            time: getCurrentTime(),
+          });
+        }
+
+        // 重置状态
         isGenerating.value = false;
         isSending.value = false;
       }

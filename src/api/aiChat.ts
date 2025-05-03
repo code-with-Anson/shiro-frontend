@@ -39,12 +39,14 @@ const isSuccessResponse = (code: any): boolean => {
  * @param conversationId 会话ID
  * @param onChunk 处理每个数据块的回调函数
  * @param onComplete 响应完成后的回调函数
+ * @param onError 发生错误时的回调函数
  */
 export async function sendChatMessage(
   message: string,
   conversationId: string,
-  onChunk: (chunk: string) => void,
-  onComplete?: () => void
+  onChunk: (chunk: string, responseConversationId: string) => void,
+  onComplete?: (responseConversationId: string) => void,
+  onError?: (error: any, responseConversationId: string) => void
 ): Promise<void> {
   let accumulatedResponse = "";
 
@@ -74,7 +76,8 @@ export async function sendChatMessage(
             accumulatedResponse = responseText;
 
             if (newChunk) {
-              onChunk(newChunk);
+              // 传递会话ID以便调用者可以验证
+              onChunk(newChunk, conversationId);
             }
           }
         },
@@ -93,15 +96,19 @@ export async function sendChatMessage(
 
     // 调用完成回调函数
     if (onComplete) {
-      onComplete();
+      onComplete(conversationId);
     }
   } catch (error: any) {
-    if (error.response?.data) {
-      throw new Error(error.response.data.msg || "请求失败");
-    } else if (error.request) {
-      throw new Error("网络错误，请稍后重试");
+    if (onError) {
+      onError(error, conversationId);
     } else {
-      throw new Error(error.message || "请求失败，请稍后重试");
+      if (error.response?.data) {
+        throw new Error(error.response.data.msg || "请求失败");
+      } else if (error.request) {
+        throw new Error("网络错误，请稍后重试");
+      } else {
+        throw new Error(error.message || "请求失败，请稍后重试");
+      }
     }
   }
 }
