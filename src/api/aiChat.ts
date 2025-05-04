@@ -273,25 +273,29 @@ export async function updateConversationTopic(
 
 /**
  * 删除会话
- * @param conversationId 会话ID
+ * @param conversationIds 会话ID或ID数组
  */
 export async function deleteConversation(
-  conversationId: string
+  conversationIds: string | string[]
 ): Promise<void> {
   try {
+    // 如果传入的是单个ID，转换为数组
+    const ids = Array.isArray(conversationIds)
+      ? conversationIds
+      : [conversationIds];
+
     const response = await axiosInstance.post("/ai/user-conversation/delete", {
-      conversationId,
+      conversationIds: ids,
     });
 
     if (!isSuccessResponse(response.data.code)) {
       throw new Error(response.data.msg || "删除会话失败");
     }
   } catch (error: any) {
-    if (error.response?.data) {
-      throw new Error(error.response.data.msg || "删除会话失败");
-    } else {
-      throw new Error("网络错误，删除会话失败");
-    }
+    console.error("删除会话异常:", error);
+    throw new Error(
+      error.response?.data?.msg || error.message || "删除会话失败"
+    );
   }
 }
 

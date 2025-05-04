@@ -143,54 +143,117 @@
     >
       <div class="history-popup-content">
         <van-nav-bar title="历史对话">
+          <template #left>
+            <van-icon
+              v-if="deleteMode"
+              name="cross"
+              size="20"
+              @click="toggleDeleteMode"
+            />
+          </template>
           <template #right>
-            <van-icon name="plus" size="20" @click="startNewChat" />
+            <div class="history-actions">
+              <template v-if="deleteMode">
+                <van-button
+                  type="danger"
+                  size="small"
+                  :disabled="selectedConversations.length === 0"
+                  @click="confirmDelete"
+                >
+                  删除({{ selectedConversations.length }})
+                </van-button>
+              </template>
+              <template v-else>
+                <van-icon
+                  name="delete-o"
+                  size="20"
+                  @click="toggleDeleteMode"
+                  class="history-action-icon"
+                />
+                <van-icon
+                  name="plus"
+                  size="20"
+                  @click="startNewChat"
+                  class="history-action-icon"
+                />
+              </template>
+            </div>
           </template>
         </van-nav-bar>
+
         <van-pull-refresh
           v-model="refreshingHistory"
           @refresh="onHistoryRefresh"
+          :disabled="!canPullRefresh || deleteMode"
+          pulling-text="下拉可以刷新..."
+          loosing-text="释放立即刷新..."
+          success-text="刷新成功"
         >
-          <van-list
-            v-model:loading="loadingHistory"
-            :finished="finishedHistory"
-            finished-text="没有更多了"
-            @load="loadMoreHistory"
-            class="history-list-mobile"
-          >
+          <div class="history-list-mobile" @scroll="handleHistoryScroll">
             <van-empty
               v-if="chatHistory.length === 0 && !loadingHistory"
               description="暂无历史对话"
             ></van-empty>
+
             <van-cell
               v-else
               v-for="chat in chatHistory"
               :key="chat.conversationId"
               :title="chat.topic"
               :label="formatTime(chat.createTime)"
-              is-link
-              :class="{ active: currentConversationId === chat.conversationId }"
-              @click="switchChat(chat.conversationId)"
+              :class="{
+                active: currentConversationId === chat.conversationId,
+                'delete-mode': deleteMode,
+              }"
+              @click="
+                deleteMode
+                  ? toggleSelection(chat.conversationId)
+                  : switchChat(chat.conversationId)
+              "
             >
               <template #right-icon>
-                <!-- 简单起见，移动端暂时省略编辑和删除按钮，可后续添加 -->
-                <!-- <van-icon name="edit" class="history-action-icon" @click.stop="editTopic(chat)" /> -->
-                <!-- <van-icon name="delete-o" class="history-action-icon" @click.stop="confirmDelete(chat.conversationId)" /> -->
+                <!-- 删除模式下显示复选框 -->
+                <van-checkbox
+                  v-if="deleteMode"
+                  :model-value="
+                    selectedConversations.includes(chat.conversationId)
+                  "
+                  @click.stop="toggleSelection(chat.conversationId)"
+                />
               </template>
             </van-cell>
-          </van-list>
+
+            <!-- 加载更多按钮 -->
+            <div
+              v-if="!finishedHistory && !deleteMode"
+              class="load-more-btn"
+              @click="loadMoreHistory"
+            >
+              <van-loading v-if="loadingHistory" size="16" />
+              <span v-else
+                >加载更多 ({{ chatHistory.length }}/{{
+                  totalConversations
+                }})</span
+              >
+            </div>
+            <div v-else-if="!deleteMode" class="finished-text">没有更多了</div>
+          </div>
         </van-pull-refresh>
       </div>
     </van-popup>
 
-    <!-- 编辑主题对话框 (如果需要) -->
-    <!-- <van-dialog v-model:show="editDialogVisible" title="编辑主题" show-cancel-button @confirm="saveTopic" :before-close="onEditDialogClose">
-        <van-field v-model="editingTopic" label="主题" placeholder="请输入新的会话主题" />
-      </van-dialog> -->
-
-    <!-- 删除确认对话框 (如果需要) -->
-    <!-- <van-dialog v-model:show="deleteDialogVisible" title="确认删除" message="确定要删除这个会话吗？此操作不可恢复。" show-cancel-button @confirm="confirmDeleteAction" :loading="deletingConversation">
-      </van-dialog> -->
+    <!-- 添加确认删除弹窗 -->
+    <van-dialog
+      v-model:show="showDeleteConfirmDialog"
+      title="确认删除"
+      message="确定要删除选中的对话吗？此操作不可恢复。"
+      show-cancel-button
+      @confirm="deleteSelected"
+      @cancel="cancelDelete"
+      :loading="isDeleting"
+      :before-close="handleDialogClose"
+    >
+    </van-dialog>
   </div>
 </template>
 
@@ -258,6 +321,12 @@ const messageArea = ref<HTMLElement | null>(null);
 const userAvatar = ref<string>("");
 const currentConversationId = ref<string>(""); // 当前会话ID
 
+// 批量删除相关状态
+const deleteMode = ref(false); // 是否处于删除模式
+const selectedConversations = ref<string[]>([]); // 已选中要删除的会话ID
+const isDeleting = ref(false); // 删除操作中的加载状态
+const showDeleteConfirmDialog = ref(false); // 删除确认弹窗
+
 // 滚动相关状态
 const userScrolling = ref(false);
 const showScrollButton = ref(false);
@@ -268,10 +337,23 @@ const showHistoryPopup = ref(false);
 const chatHistory = ref<UserConversation[]>([]);
 const totalConversations = ref<number>(0);
 const currentPage = ref<number>(1);
-const pageSize = ref<number>(15); // 移动端每页加载更多条
+const pageSize = ref<number>(10); // 每次加载 10 条
 const loadingHistory = ref(false); // List 加载状态
 const finishedHistory = ref(false); // List 是否全部加载完成
 const refreshingHistory = ref(false); // PullRefresh 刷新状态
+
+// 添加一个新变量跟踪历史列表的滚动位置
+const historyScrollTop = ref(0);
+const canPullRefresh = ref(true);
+
+// 添加滚动监听函数
+const handleHistoryScroll = (event: Event) => {
+  const target = event.target as HTMLElement;
+  historyScrollTop.value = target.scrollTop;
+
+  // 只有当滚动到顶部或非常接近顶部时，才允许下拉刷新
+  canPullRefresh.value = historyScrollTop.value <= 5;
+};
 
 // 缓存 (类似桌面端)
 const messageCache = ref(new Map<string, Message[]>()); // 缓存每个会话的消息
@@ -469,11 +551,57 @@ const sendMessage = async () => {
     time: getCurrentTime(),
   };
   messages.value.push(userMsg);
-  messageCache.get(currentConversationId.value)?.push(userMsg); // 更新缓存
+  messageCache.value.get(currentConversationId.value)?.push(userMsg); // 更新缓存
   scrollToBottom();
 
+  // 检查是否是新会话的第一条消息，如果是，则立即更新标题
+  const currentChat = chatHistory.value.find(
+    (c) => c.conversationId === currentConversationId.value
+  );
+
+  // 添加更多调试信息
+  console.log("当前会话信息:", {
+    id: currentConversationId.value,
+    topic: currentChat?.topic,
+    messagesLength: messages.value.length,
+  });
+
+  // 修改判断条件：用户消息添加后长度为1或2（可能已有欢迎消息）
+  if (
+    currentChat &&
+    (currentChat.topic === "移动端新对话" || currentChat.topic === "新对话") &&
+    messages.value.length <= 2 // 允许有欢迎消息存在
+  ) {
+    // 直接使用用户消息作为标题（如果太长则截取）
+    let newTitle = userMessage;
+    if (newTitle.length > 20) {
+      newTitle = newTitle.substring(0, 20) + "...";
+    }
+
+    console.log("准备更新标题为:", newTitle);
+
+    // 立即更新会话标题
+    try {
+      await updateConversationTopic(currentConversationId.value, newTitle);
+
+      // 更新本地缓存的会话列表
+      const index = chatHistory.value.findIndex(
+        (c) => c.conversationId === currentConversationId.value
+      );
+      if (index !== -1) {
+        chatHistory.value[index].topic = newTitle;
+      }
+      console.log("已将首次提问设为标题:", newTitle);
+
+      // 强制刷新导航栏标题
+      await nextTick();
+    } catch (error) {
+      console.error("更新会话标题失败:", error);
+    }
+  }
+
+  // 以下是原有的消息发送逻辑
   isSending.value = true;
-  // isGenerating.value = true; // isGenerating 由 isMessageGenerating 控制
   generatingContentCache.value.set(currentConversationId.value, ""); // 重置生成缓存
 
   // 添加AI消息占位符
@@ -484,7 +612,7 @@ const sendMessage = async () => {
   };
   messages.value.push(aiMsgPlaceholder);
   const aiMessageIndex = messages.value.length - 1; // 获取占位符索引
-  messageCache.get(currentConversationId.value)?.push(aiMsgPlaceholder); // 更新缓存
+  messageCache.value.get(currentConversationId.value)?.push(aiMsgPlaceholder); // 更新缓存
 
   const requestConversationId = currentConversationId.value; // 保存当前ID
   generatingMessages.value.add(requestConversationId); // 标记正在生成
@@ -497,19 +625,17 @@ const sendMessage = async () => {
       (chunk, responseConversationId) => {
         if (responseConversationId === currentConversationId.value) {
           const currentGenContent =
-            generatingContentCache.get(responseConversationId) || "";
+            generatingContentCache.value.get(responseConversationId) || "";
           const newContent = currentGenContent + chunk;
-          generatingContentCache.set(responseConversationId, newContent);
+          generatingContentCache.value.set(responseConversationId, newContent);
 
-          // 更新UI中的消息内容
           if (
             messages.value[aiMessageIndex] &&
             messages.value[aiMessageIndex].type === "ai"
           ) {
             messages.value[aiMessageIndex].content = newContent;
           }
-          // 更新缓存中的消息内容
-          const cachedMsgs = messageCache.get(responseConversationId);
+          const cachedMsgs = messageCache.value.get(responseConversationId);
           if (
             cachedMsgs &&
             cachedMsgs[aiMessageIndex] &&
@@ -540,7 +666,7 @@ const sendMessage = async () => {
             ) {
               messages.value[aiMessageIndex].content = lastAiMsg.content;
               // 更新缓存
-              const cachedMsgs = messageCache.get(responseConversationId);
+              const cachedMsgs = messageCache.value.get(responseConversationId);
               if (
                 cachedMsgs &&
                 cachedMsgs[aiMessageIndex] &&
@@ -599,7 +725,7 @@ const sendMessage = async () => {
             messages.value[aiMessageIndex].type = "system"; // 标记为系统错误
           }
           // 更新缓存
-          const cachedMsgs = messageCache.get(responseConversationId);
+          const cachedMsgs = messageCache.value.get(responseConversationId);
           if (
             cachedMsgs &&
             cachedMsgs[aiMessageIndex] &&
@@ -626,7 +752,7 @@ const sendMessage = async () => {
         messages.value[aiMessageIndex].type = "system";
       }
       // 更新缓存
-      const cachedMsgs = messageCache.get(requestConversationId);
+      const cachedMsgs = messageCache.value.get(requestConversationId);
       if (
         cachedMsgs &&
         cachedMsgs[aiMessageIndex] &&
@@ -687,7 +813,7 @@ const handleAnalysisMode = async (
       time: getCurrentTime(),
     };
     messages.value.push(analyzingMsg);
-    messageCache.set(analysisConversationId, [analyzingMsg]); // 缓存初始消息
+    messageCache.value.set(analysisConversationId, [analyzingMsg]); // 缓存初始消息
     scrollToBottom(true);
 
     // 发送分析请求（不阻塞UI）
@@ -777,7 +903,7 @@ const sendAnalysisPrompt = async (
     time: getCurrentTime(),
   };
   messages.value.push(userPromptMsg);
-  messageCache.get(requestConversationId)?.push(userPromptMsg);
+  messageCache.value.get(requestConversationId)?.push(userPromptMsg);
 
   // 添加AI响应占位符
   const aiPlaceholderMsg: Message = {
@@ -787,7 +913,7 @@ const sendAnalysisPrompt = async (
   };
   messages.value.push(aiPlaceholderMsg);
   const aiMessageIndex = messages.value.length - 1;
-  messageCache.get(requestConversationId)?.push(aiPlaceholderMsg);
+  messageCache.value.get(requestConversationId)?.push(aiPlaceholderMsg);
   scrollToBottom();
 
   try {
@@ -798,9 +924,9 @@ const sendAnalysisPrompt = async (
       (chunk, responseConversationId) => {
         if (responseConversationId === currentConversationId.value) {
           const currentGenContent =
-            generatingContentCache.get(responseConversationId) || "";
+            generatingContentCache.value.get(responseConversationId) || "";
           const newContent = currentGenContent + chunk;
-          generatingContentCache.set(responseConversationId, newContent);
+          generatingContentCache.value.set(responseConversationId, newContent);
 
           if (
             messages.value[aiMessageIndex] &&
@@ -808,7 +934,7 @@ const sendAnalysisPrompt = async (
           ) {
             messages.value[aiMessageIndex].content = newContent;
           }
-          const cachedMsgs = messageCache.get(responseConversationId);
+          const cachedMsgs = messageCache.value.get(responseConversationId);
           if (
             cachedMsgs &&
             cachedMsgs[aiMessageIndex] &&
@@ -838,7 +964,7 @@ const sendAnalysisPrompt = async (
               messages.value[aiMessageIndex].type === "ai"
             ) {
               messages.value[aiMessageIndex].content = lastAiMsg.content;
-              const cachedMsgs = messageCache.get(responseConversationId);
+              const cachedMsgs = messageCache.value.get(responseConversationId);
               if (
                 cachedMsgs &&
                 cachedMsgs[aiMessageIndex] &&
@@ -868,7 +994,7 @@ const sendAnalysisPrompt = async (
               "分析请求出错，请稍后再试。";
             messages.value[aiMessageIndex].type = "system";
           }
-          const cachedMsgs = messageCache.get(responseConversationId);
+          const cachedMsgs = messageCache.value.get(responseConversationId);
           if (
             cachedMsgs &&
             cachedMsgs[aiMessageIndex] &&
@@ -893,7 +1019,7 @@ const sendAnalysisPrompt = async (
         messages.value[aiMessageIndex].content = "发送分析请求失败。";
         messages.value[aiMessageIndex].type = "system";
       }
-      const cachedMsgs = messageCache.get(requestConversationId);
+      const cachedMsgs = messageCache.value.get(requestConversationId);
       if (
         cachedMsgs &&
         cachedMsgs[aiMessageIndex] &&
@@ -923,65 +1049,90 @@ const loadHistory = async (
 };
 
 const loadMoreHistory = async () => {
-  console.log("加载更多历史记录...");
+  // 不再需要检查 loading 状态，因为按钮点击时会禁用
+  console.log("手动加载更多历史记录...");
+
+  if (loadingHistory.value) return; // 防止重复点击
+  if (finishedHistory.value) return; // 已经没有更多数据
+
   loadingHistory.value = true;
   const nextPage = currentPage.value + 1;
-  const response = await loadHistory(nextPage, pageSize.value);
+  console.log(`请求页码: ${nextPage}, 每页大小: ${pageSize.value}`);
 
-  if (response && response.records) {
-    chatHistory.value.push(...response.records);
-    currentPage.value = nextPage;
-    totalConversations.value = response.total;
-    // 判断是否加载完成
-    finishedHistory.value =
-      chatHistory.value.length >= totalConversations.value;
-  } else {
-    // 加载失败或无数据
-    finishedHistory.value = true; // 标记为完成，防止无限加载
+  try {
+    const response = await loadHistory(nextPage, pageSize.value);
+    console.log("加载更多 API 响应:", response);
+
+    if (response && response.records && response.records.length > 0) {
+      chatHistory.value.push(...response.records);
+      currentPage.value = nextPage;
+      totalConversations.value = response.total;
+
+      // 检查是否已加载所有数据
+      finishedHistory.value =
+        chatHistory.value.length >= totalConversations.value;
+      console.log(
+        `更新后: 当前页=${currentPage.value}, 总数=${totalConversations.value}, 列表长度=${chatHistory.value.length}`
+      );
+    } else {
+      // 没有更多数据或 API 返回空结果
+      finishedHistory.value = true;
+    }
+  } catch (error) {
+    console.error("加载更多失败:", error);
+    showToast("加载更多失败，请重试");
+  } finally {
+    loadingHistory.value = false;
   }
-  loadingHistory.value = false;
-  console.log(
-    "加载完成，当前历史:",
-    chatHistory.value.length,
-    "总数:",
-    totalConversations.value
-  );
 };
 
 const onHistoryRefresh = async () => {
   console.log("下拉刷新历史记录...");
-  currentPage.value = 1; // 重置页码
-  finishedHistory.value = false; // 重置完成状态
-  loadingHistory.value = true; // 显示加载状态
-  chatHistory.value = []; // 清空列表
+  currentPage.value = 1;
+  finishedHistory.value = false;
+  // 注意这里不立即设置为 true，而是用临时变量记录状态
+  // loadingHistory.value = true;
+  const isRefreshing = true;
+  chatHistory.value = [];
 
+  console.log(`请求页码: ${currentPage.value}, 每页大小: ${pageSize.value}`);
   const response = await loadHistory(currentPage.value, pageSize.value);
+  console.log("刷新 API 响应:", response);
 
   if (response && response.records) {
     chatHistory.value = response.records;
     totalConversations.value = response.total;
+    console.log(
+      `刷新后: 总数=${totalConversations.value}, 列表长度=${chatHistory.value.length}`
+    );
+
+    // 重新计算 finished 状态
     finishedHistory.value =
       chatHistory.value.length >= totalConversations.value;
+    console.log(`计算 finished 状态: ${finishedHistory.value}`);
   } else {
     finishedHistory.value = true;
+    console.error("刷新失败或无数据，标记为 finished");
   }
 
-  loadingHistory.value = false;
-  refreshingHistory.value = false; // 结束下拉刷新状态
-  console.log(
-    "刷新完成，当前历史:",
-    chatHistory.value.length,
-    "总数:",
-    totalConversations.value
-  );
+  // 使用 setTimeout 延迟关闭 loadingHistory 状态
+  setTimeout(() => {
+    loadingHistory.value = false;
+    console.log("loadingHistory 延迟设置为 false");
+  }, 200); // 200毫秒的延迟，确保 DOM 已更新
 
-  // 如果刷新后没有当前选中的会话ID，且列表不为空，则默认选中第一个
-  if (!currentConversationId.value && chatHistory.value.length > 0) {
-    await switchChat(chatHistory.value[0].conversationId);
-  } else if (chatHistory.value.length === 0) {
-    // 如果刷新后列表为空，则创建一个新对话
-    await startNewChat();
-  }
+  // 使用 setTimeout 结束下拉刷新状态，确保视觉效果正常
+  setTimeout(async () => {
+    refreshingHistory.value = false;
+    console.log("刷新结束.");
+
+    // --- 后续逻辑 ---
+    if (!currentConversationId.value && chatHistory.value.length > 0) {
+      await switchChat(chatHistory.value[0].conversationId);
+    } else if (chatHistory.value.length === 0) {
+      await startNewChat();
+    }
+  }, 300);
 };
 
 // --- 滚动逻辑 (与之前类似) ---
@@ -1062,6 +1213,109 @@ const findLastAiMessageIndex = (msgArray: Message[]) => {
     }
   }
   return -1;
+};
+
+// 切换删除模式
+const toggleDeleteMode = () => {
+  deleteMode.value = !deleteMode.value;
+  if (!deleteMode.value) {
+    selectedConversations.value = []; // 退出删除模式时清空选中记录
+  }
+};
+
+// 选中或取消选中会话
+const toggleSelection = (conversationId: string) => {
+  const index = selectedConversations.value.indexOf(conversationId);
+  if (index >= 0) {
+    selectedConversations.value.splice(index, 1); // 移除已选中的
+  } else {
+    selectedConversations.value.push(conversationId); // 添加新选中的
+  }
+};
+
+// 打开删除确认对话框
+const confirmDelete = () => {
+  if (selectedConversations.value.length === 0) {
+    showToast("请至少选择一个对话");
+    return;
+  }
+  showDeleteConfirmDialog.value = true;
+};
+
+// 执行批量删除
+const deleteSelected = async () => {
+  if (selectedConversations.value.length === 0) return;
+
+  isDeleting.value = true;
+  // 复制一份当前选中的会话ID，防止后续操作中被修改
+  const conversationsToDelete = [...selectedConversations.value];
+  const wasCurrentConversationSelected = conversationsToDelete.includes(
+    currentConversationId.value
+  );
+
+  try {
+    // 使用 API 中的 deleteConversation 方法，传入会话ID数组
+    await deleteConversation(conversationsToDelete);
+
+    // 成功后先关闭弹窗和加载状态，再执行其他操作
+    showDeleteConfirmDialog.value = false;
+    isDeleting.value = false;
+
+    showToast("删除成功");
+
+    // 刷新历史记录
+    await onHistoryRefresh().catch((err) => {
+      console.error("刷新历史记录失败:", err);
+      // 即使刷新失败也继续后续操作
+    });
+
+    // 如果当前会话在已删除列表中，创建一个新会话
+    if (wasCurrentConversationSelected) {
+      await startNewChat().catch((err) => {
+        console.error("创建新会话失败:", err);
+        // 即使创建失败也要继续
+      });
+    }
+
+    // 最后退出删除模式
+    toggleDeleteMode();
+  } catch (error: any) {
+    console.error("删除会话失败:", error);
+    showToast(`删除失败: ${error.message || "请重试"}`);
+  } finally {
+    // 确保无论如何都重置状态
+    isDeleting.value = false;
+    showDeleteConfirmDialog.value = false;
+
+    // 如果删除模式仍然开启（可能是因为toggleDeleteMode失败），强制关闭
+    if (deleteMode.value) {
+      deleteMode.value = false;
+      selectedConversations.value = [];
+    }
+  }
+};
+
+// 取消删除
+const cancelDelete = () => {
+  showDeleteConfirmDialog.value = false;
+  // 确保取消时也重置加载状态
+  isDeleting.value = false;
+};
+
+// 添加关闭对话框的处理函数
+const handleDialogClose = (action, done) => {
+  // 如果正在删除中，阻止关闭
+  if (action === "confirm" && isDeleting.value) {
+    return;
+  }
+
+  // 重置状态
+  if (action === "cancel") {
+    isDeleting.value = false;
+  }
+
+  // 允许关闭对话框
+  done();
 };
 
 // --- 生命周期钩子 ---
@@ -1339,38 +1593,92 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #f8f8f8; /* 给侧边栏背景色 */
+  width: 100%; /* 确保宽度也是100% */
+  background-color: #f8f8f8;
+  overflow: hidden;
 }
+
+/* 修复 van-pull-refresh 高度问题 */
+.history-popup-content :deep(.van-pull-refresh) {
+  flex: 1;
+  height: calc(100% - 46px); /* 减去导航栏高度 */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 增强滚动容器设置 */
 .history-list-mobile {
   flex: 1;
+  height: 100%; /* 使用100%高度而不是0 */
+  width: 100%;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 20px;
 }
+
+/* 确保 van-cell 能够正确呈现 */
 .history-list-mobile .van-cell {
+  width: 100%;
   padding: 12px 16px;
   transition: background-color 0.2s;
-  background-color: #fff; /* 单元格背景 */
-  margin-bottom: 1px; /* 单元格间细线 */
+  background-color: #fff;
+  margin-bottom: 1px;
+  box-sizing: border-box;
 }
+
+/* 激活状态样式 */
 .history-list-mobile .van-cell.active {
   background-color: #e6f0ff;
 }
-.history-list-mobile .van-cell__title {
-  font-size: 14px;
-  color: #333; /* 标题颜色 */
+
+/* 删除模式样式 */
+.history-list-mobile .van-cell.delete-mode {
+  background-color: #fff;
 }
-.history-list-mobile .van-cell__label {
+
+.history-list-mobile .van-cell.delete-mode.active {
+  background-color: #f0f0f0;
+}
+
+.history-list-mobile .van-cell.delete-mode:active {
+  background-color: #f0f0f0;
+}
+
+/* 复选框样式调整 */
+.history-list-mobile :deep(.van-checkbox) {
+  margin-right: 4px;
+}
+
+/* 删除按钮样式 */
+.van-button--danger.van-button--small {
+  height: 28px;
+  padding: 0 10px;
   font-size: 12px;
-  color: #999;
-  margin-top: 2px;
 }
-.history-action-icon {
-  margin-left: 10px;
-  font-size: 18px;
-  color: #999;
+
+/* 加载更多按钮样式 */
+.load-more-btn {
+  width: calc(100% - 16px);
+  padding: 12px;
+  margin: 8px;
+  text-align: center;
+  color: #1989fa;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  box-sizing: border-box;
 }
-/* 侧边栏 NavBar 样式 */
-.history-popup-content .van-nav-bar {
-  flex-shrink: 0; /* 防止被压缩 */
+
+.finished-text {
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  margin-top: 5px;
+  box-sizing: border-box;
 }
 
 /* --- Markdown 内容样式微调 --- */
@@ -1458,6 +1766,43 @@ onUnmounted(() => {
 .markdown-body th {
   font-weight: 600;
   background-color: #f6f8fa;
+}
+
+/* --- 加载更多按钮样式 --- */
+.load-more-btn {
+  padding: 12px;
+  margin: 8px;
+  text-align: center;
+  color: #1989fa;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+/* 历史记录动作按钮区域 */
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-action-icon {
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.load-more-btn:active {
+  background-color: #f2f8ff;
+}
+
+.finished-text {
+  padding: 10px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  margin-top: 5px;
 }
 
 /* --- 动画 --- */
