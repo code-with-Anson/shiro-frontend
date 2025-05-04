@@ -7,6 +7,10 @@
         >账单</van-tabbar-item
       >
       <van-tabbar-item to="/renew-bill" icon="gem-o">循环</van-tabbar-item>
+      <!-- 新增 AI 助手导航项 -->
+      <van-tabbar-item to="/ai-chat-mobile" icon="chat-o"
+        >AI助手</van-tabbar-item
+      >
       <van-tabbar-item to="/me" icon="user-circle-o">我的</van-tabbar-item>
     </van-tabbar>
 

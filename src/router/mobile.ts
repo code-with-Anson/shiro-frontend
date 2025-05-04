@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import { authGuard } from "@/utils/authGuard";
 import m_bill from "../views/mobile/m_bill.vue";
 import mBillStatistics from "@/views/mobile/m_bill_statistics.vue";
+import M_ai_chat from "@/views/mobile/m_ai_chat.vue";
 
 // 这里是移动端路由，当检测到用户为移动端就会应用这个路由
 // 通过动态导入的方式实现路由的按需加载，适配不同的设备
@@ -29,6 +30,15 @@ const mobileRouter = createRouter({
       meta: {
         requiresAuth: true,
         title: "账单统计",
+      },
+    },
+    {
+      path: "/ai-chat-mobile",
+      name: "ai-chat-mobile",
+      component: M_ai_chat,
+      meta: {
+        requiresAuth: true,
+        title: "ai聊天助手",
       },
     },
     {
