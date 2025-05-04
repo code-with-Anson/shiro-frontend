@@ -654,6 +654,7 @@ onMounted(async () => {
 
 .info-label {
   width: 60px;
+  font-size: 18px;
   color: #606266;
   font-weight: 500;
   text-align: left;
@@ -661,6 +662,7 @@ onMounted(async () => {
 
 .info-value {
   flex: 1;
+  font-size: 18px;
   color: #333;
 }
 
