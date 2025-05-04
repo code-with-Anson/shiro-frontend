@@ -84,6 +84,25 @@
       </div>
     </div>
 
+    <!-- 添加AI分析按钮 -->
+    <div class="time-selector">
+      <div class="selector-container">
+        <!-- 现有的时间选择器代码 -->
+      </div>
+
+      <div class="ai-analysis-button">
+        <van-button
+          type="primary"
+          icon="chat-o"
+          :loading="isAnalyzing"
+          @click="handleAiAnalysis"
+          block
+        >
+          AI智能分析
+        </van-button>
+      </div>
+    </div>
+
     <!-- 统计卡片 -->
     <div class="summary-cards">
       <!-- 总支出卡片 -->
@@ -196,6 +215,7 @@ import {
   getMonthStatistics,
   getYearStatistics,
 } from "@/api/statistics";
+import { createConversation } from "@/api/aiChat";
 
 // 注册ECharts组件
 echarts.use([
@@ -478,7 +498,6 @@ const updateTrendChart = () => {
       expenseData.push(day.expense || 0);
     });
   } else if (timeRange.value === "month") {
-    // 假设后端返回了按日期的分组数据
     const daysInMonth = new Date(
       monthDate.value.getFullYear(),
       monthDate.value.getMonth() + 1,
@@ -487,7 +506,6 @@ const updateTrendChart = () => {
 
     for (let i = 1; i <= daysInMonth; i++) {
       xAxisData.push(i + "日");
-      // 假设后端返回了每日的收支数据
       const dayData = (monthData.value.dailyData || []).find(
         (d: any) => new Date(d.date).getDate() === i
       );
@@ -792,6 +810,144 @@ const sliderStyle = computed(() => {
   };
 });
 
+// AI分析状态
+const isAnalyzing = ref(false);
+
+// AI分析处理函数
+const handleAiAnalysis = async () => {
+  if (isAnalyzing.value) return;
+
+  try {
+    isAnalyzing.value = true;
+    ElMessage({
+      message: "正在准备AI分析...",
+      type: "info",
+      plain: true,
+    });
+
+    // 获取并格式化数据
+    let dataToAnalyze;
+    let timeDescription;
+
+    // 根据当前选择的时间范围获取数据并格式化
+    switch (timeRange.value) {
+      case "week":
+        dataToAnalyze = formatAnalysisData(weekData.value);
+        timeDescription = "过去一周";
+        break;
+      case "month":
+        dataToAnalyze = formatAnalysisData(monthData.value);
+        timeDescription = `${currentMonthDate.value[0]}年${currentMonthDate.value[1]}月`;
+        break;
+      case "year":
+        dataToAnalyze = formatAnalysisData(yearData.value);
+        timeDescription = `${currentYearDate.value[0]}年`;
+        break;
+    }
+
+    // 创建新的聊天会话
+    const conversationId = await createConversation(
+      `${timeDescription}账单分析`
+    );
+
+    if (!conversationId) {
+      // 使用 ElMessage 替换 showToast
+      ElMessage({
+        message: "创建AI分析会话失败",
+        type: "error",
+        plain: true,
+      });
+      return;
+    }
+
+    // 准备要发送到AI聊天页面的数据
+    const analysisData = {
+      data: dataToAnalyze,
+      timeRange: timeRange.value,
+      timeDescription: timeDescription,
+    };
+
+    // 将分析数据保存到localStorage，以便在AI聊天页面获取
+    localStorage.setItem("billAnalysisData", JSON.stringify(analysisData));
+
+    // 跳转到移动端AI聊天页面
+    router.push({
+      path: "/ai-chat-mobile",
+      query: {
+        conversationId: conversationId,
+        mode: "analysis",
+        timeRange: timeRange.value,
+        timeDesc: timeDescription,
+      },
+    });
+  } catch (error) {
+    console.error("准备AI分析失败:", error);
+    ElMessage({
+      message: "启动AI分析失败，请稍后再试",
+      type: "error",
+      plain: true,
+    });
+  } finally {
+    isAnalyzing.value = false;
+  }
+};
+
+// 数据格式化函数
+const formatAnalysisData = (data: any) => {
+  // 创建一个深拷贝以避免修改原始数据
+  const formattedData = JSON.parse(JSON.stringify(data));
+
+  // 格式化顶层数字字段
+  ["totalExpense", "totalIncome", "netIncome"].forEach((key) => {
+    if (typeof formattedData[key] === "number") {
+      formattedData[key] = Number(formattedData[key].toFixed(2));
+    }
+  });
+
+  // 格式化支出分类详情
+  if (formattedData.expenseCategoryDetails) {
+    for (const category in formattedData.expenseCategoryDetails) {
+      formattedData.expenseCategoryDetails[category] = Number(
+        Number(formattedData.expenseCategoryDetails[category]).toFixed(2)
+      );
+    }
+  }
+
+  // 格式化收入分类详情
+  if (formattedData.incomeCategoryDetails) {
+    for (const category in formattedData.incomeCategoryDetails) {
+      formattedData.incomeCategoryDetails[category] = Number(
+        Number(formattedData.incomeCategoryDetails[category]).toFixed(2)
+      );
+    }
+  }
+
+  // 格式化每日数据
+  if (formattedData.dailyData && Array.isArray(formattedData.dailyData)) {
+    formattedData.dailyData = formattedData.dailyData.map(
+      (day: { income: any; expense: any }) => ({
+        ...day,
+        income: Number(Number(day.income).toFixed(2)),
+        expense: Number(Number(day.expense).toFixed(2)),
+      })
+    );
+  }
+
+  // 格式化月度数据
+  if (formattedData.monthDetails && Array.isArray(formattedData.monthDetails)) {
+    formattedData.monthDetails = formattedData.monthDetails.map(
+      (month: { income: any; expense: any; netIncome: any }) => ({
+        ...month,
+        income: Number(Number(month.income).toFixed(2)),
+        expense: Number(Number(month.expense).toFixed(2)),
+        netIncome: Number(Number(month.netIncome || 0).toFixed(2)),
+      })
+    );
+  }
+
+  return formattedData;
+};
+
 // 生命周期钩子
 onMounted(async () => {
   loading.value = true;
@@ -990,5 +1146,23 @@ onUnmounted(() => {
 
 .empty-container {
   padding: 40px 0;
+}
+
+/* 添加AI分析按钮样式 */
+.ai-analysis-button {
+  margin-top: 15px;
+  width: 100%;
+}
+
+.ai-analysis-button .van-button {
+  border-radius: 8px;
+  padding: 8px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ai-analysis-button .van-icon {
+  margin-right: 6px;
+  font-size: 18px;
+  vertical-align: -2px;
 }
 </style>
