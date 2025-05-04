@@ -28,6 +28,27 @@
           >
             加载中...
           </van-loading>
+
+          <!-- 添加中央创建新对话按钮 -->
+          <div
+            v-else-if="!currentConversationId && !isLoading"
+            class="create-chat-container"
+          >
+            <van-empty description="开始一个新的对话吧" image-size="100">
+              <template #bottom>
+                <van-button
+                  type="primary"
+                  size="small"
+                  icon="plus"
+                  round
+                  @click="startNewChat"
+                >
+                  新建对话
+                </van-button>
+              </template>
+            </van-empty>
+          </div>
+
           <van-empty
             v-else-if="messages.length === 0 && !isLoading"
             description="开始一个新的对话吧"
@@ -115,6 +136,7 @@
             placeholder="请输入..."
             :disabled="!currentConversationId || isSending"
             @keydown="handleKeyDown"
+            @focus="handleInputFocus"
             class="chat-input-mobile"
           />
           <van-button
@@ -300,6 +322,14 @@ const md = new MarkdownIt({
     )}</code></pre>`;
   },
 });
+const appHeight = ref(window.innerHeight);
+const updateAppHeight = () => {
+  appHeight.value = window.innerHeight;
+  document.documentElement.style.setProperty(
+    "--app-height",
+    `${appHeight.value}px`
+  );
+};
 const renderMarkdown = (content: string): string => {
   if (!content) return "";
   return md.render(content);
@@ -353,6 +383,16 @@ const handleHistoryScroll = (event: Event) => {
 
   // 只有当滚动到顶部或非常接近顶部时，才允许下拉刷新
   canPullRefresh.value = historyScrollTop.value <= 5;
+};
+
+// 添加输入框焦点处理函数
+const handleInputFocus = () => {
+  // 延迟滚动到底部，等待键盘弹出完成
+  setTimeout(() => {
+    scrollToBottom(true);
+    // 再次调整视口高度
+    updateAppHeight();
+  }, 400);
 };
 
 // 缓存 (类似桌面端)
@@ -506,7 +546,8 @@ const startNewChat = async () => {
   isLoading.value = true;
   showHistoryPopup.value = false; // 关闭侧边栏
   try {
-    const conversationId = await createConversation("移动端新对话");
+    // 修改为"新对话"，与桌面端保持一致
+    const conversationId = await createConversation("新对话");
     currentConversationId.value = conversationId;
     messages.value = [
       {
@@ -569,13 +610,13 @@ const sendMessage = async () => {
   // 修改判断条件：用户消息添加后长度为1或2（可能已有欢迎消息）
   if (
     currentChat &&
-    (currentChat.topic === "移动端新对话" || currentChat.topic === "新对话") &&
+    currentChat.topic === "新对话" && // 只保留新的标题格式
     messages.value.length <= 2 // 允许有欢迎消息存在
   ) {
     // 直接使用用户消息作为标题（如果太长则截取）
     let newTitle = userMessage;
-    if (newTitle.length > 20) {
-      newTitle = newTitle.substring(0, 20) + "...";
+    if (newTitle.length > 12) {
+      newTitle = newTitle.substring(0, 12) + "...";
     }
 
     console.log("准备更新标题为:", newTitle);
@@ -1126,11 +1167,9 @@ const onHistoryRefresh = async () => {
     refreshingHistory.value = false;
     console.log("刷新结束.");
 
-    // --- 后续逻辑 ---
+    // 修改后的逻辑：只有历史记录不为空且没有当前会话时，才选择第一个会话
     if (!currentConversationId.value && chatHistory.value.length > 0) {
       await switchChat(chatHistory.value[0].conversationId);
-    } else if (chatHistory.value.length === 0) {
-      await startNewChat();
     }
   }, 300);
 };
@@ -1330,17 +1369,26 @@ onMounted(async () => {
       route.query.timeDesc as string
     );
   } else {
-    // 正常加载，先加载历史记录
-    await onHistoryRefresh(); // 使用刷新逻辑来加载第一页并可能选中第一个
-    // 如果 onHistoryRefresh 后 currentConversationId 仍为空（例如API出错或无历史记录），则启动新对话
-    if (!currentConversationId.value) {
-      await startNewChat();
-    }
+    // 正常加载，只加载历史记录，不自动创建新对话
+    await onHistoryRefresh();
   }
 
   // 添加滚动监听
   if (messageArea.value) {
     messageArea.value.addEventListener("scroll", handleScroll);
+  }
+
+  // 添加视口高度调整
+  updateAppHeight();
+  window.addEventListener("resize", updateAppHeight);
+
+  // 为输入框添加焦点事件
+  const inputField = document.querySelector(".chat-input-mobile textarea");
+  if (inputField) {
+    inputField.addEventListener("focus", () => {
+      // 输入框获取焦点时延迟滚动到底部
+      setTimeout(() => scrollToBottom(true), 300);
+    });
   }
 });
 
@@ -1349,19 +1397,28 @@ onUnmounted(() => {
   if (messageArea.value) {
     messageArea.value.removeEventListener("scroll", handleScroll);
   }
-  // 清理可能的定时器等
+  // 移除窗口大小变化监听
+  window.removeEventListener("resize", updateAppHeight);
 });
 </script>
 
 <style scoped>
+:root {
+  --app-height: 100vh;
+}
 /* --- 整体布局 --- */
 .chat-layout-mobile {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* 使用 vh 保持全屏 */
+  height: var(--app-height); /* 使用自定义变量替代 100vh */
   width: 100%;
   background-color: #f4f6f8;
   overflow: hidden;
+  position: fixed; /* 添加固定定位 */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 /* --- 导航栏 --- */
@@ -1497,6 +1554,8 @@ onUnmounted(() => {
   padding: 8px 10px;
   background-color: #f8f8f8;
   border-top: 1px solid #e0e0e0;
+  position: relative; /* 添加相对定位 */
+  z-index: 100; /* 增加层级，确保始终可见 */
 }
 .chat-input-mobile {
   flex: 1;
@@ -1817,4 +1876,22 @@ onUnmounted(() => {
   }
 }
 /* Vant Fade 动画已内置 */
+
+/* 添加居中的创建对话按钮容器 */
+.create-chat-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  text-align: center;
+  padding: 20px;
+}
+
+.create-chat-container .van-button {
+  margin-top: 16px;
+  padding: 0 20px;
+  height: 40px;
+  font-size: 16px;
+}
 </style>
