@@ -726,30 +726,50 @@ const sendMessage = async () => {
       requestConversationId,
       // onChunk 回调
       (chunk, responseConversationId) => {
-        if (responseConversationId === currentConversationId.value) {
-          const currentGenContent =
+        // 确保有有效的会话ID
+        if (!responseConversationId) {
+          responseConversationId = requestConversationId;
+        }
+
+        try {
+          // 检查是否收到有效数据块
+          if (!chunk) {
+            console.log("移动端收到空数据块，跳过处理");
+            return;
+          }
+
+          console.log("移动端接收数据块: ", chunk.length, "字符");
+
+          const currentContent =
             generatingContentCache.value.get(responseConversationId) || "";
-          const newContent = currentGenContent + chunk;
+          const newContent = currentContent + chunk;
           generatingContentCache.value.set(responseConversationId, newContent);
 
-          if (
-            messages.value[aiMessageIndex] &&
-            messages.value[aiMessageIndex].type === "ai"
-          ) {
-            messages.value[aiMessageIndex].content = newContent;
-          }
-          const cachedMsgs = messageCache.value.get(responseConversationId);
-          if (
-            cachedMsgs &&
-            cachedMsgs[aiMessageIndex] &&
-            cachedMsgs[aiMessageIndex].type === "ai"
-          ) {
-            cachedMsgs[aiMessageIndex].content = newContent;
-          }
+          // 如果是当前显示的对话，更新UI
+          if (responseConversationId === currentConversationId.value) {
+            if (
+              messages.value[aiMessageIndex] &&
+              messages.value[aiMessageIndex].type === "ai"
+            ) {
+              messages.value[aiMessageIndex].content = newContent;
+            }
 
-          if (!userIntentionalScroll.value) {
-            scrollToBottom(false); // 流式输出时滚动
+            const cachedMsgs = messageCache.value.get(responseConversationId);
+            if (
+              cachedMsgs &&
+              cachedMsgs[aiMessageIndex] &&
+              cachedMsgs[aiMessageIndex].type === "ai"
+            ) {
+              cachedMsgs[aiMessageIndex].content = newContent;
+            }
+
+            // 修改这里的滚动逻辑，尊重用户滚动意图
+            if (!userIntentionalScroll.value) {
+              nextTick(() => scrollToBottom(false));
+            }
           }
+        } catch (err) {
+          console.error("移动端处理流式数据时出错:", err);
         }
       },
       // onComplete 回调
@@ -1045,30 +1065,46 @@ const sendAnalysisPrompt = async (
       requestConversationId,
       // onChunk
       (chunk, responseConversationId) => {
-        if (responseConversationId === currentConversationId.value) {
+        if (!responseConversationId) {
+          responseConversationId = requestConversationId;
+        }
+
+        try {
+          if (!chunk) {
+            console.log("移动端分析收到空数据块，跳过处理");
+            return;
+          }
+
+          console.log("移动端分析接收数据块: ", chunk.length, "字符");
+
           const currentGenContent =
             generatingContentCache.value.get(responseConversationId) || "";
           const newContent = currentGenContent + chunk;
           generatingContentCache.value.set(responseConversationId, newContent);
 
           if (
+            responseConversationId === currentConversationId.value &&
             messages.value[aiMessageIndex] &&
             messages.value[aiMessageIndex].type === "ai"
           ) {
             messages.value[aiMessageIndex].content = newContent;
-          }
-          const cachedMsgs = messageCache.value.get(responseConversationId);
-          if (
-            cachedMsgs &&
-            cachedMsgs[aiMessageIndex] &&
-            cachedMsgs[aiMessageIndex].type === "ai"
-          ) {
-            cachedMsgs[aiMessageIndex].content = newContent;
-          }
 
-          if (!userScrolling.value) {
-            scrollToBottom();
+            const cachedMsgs = messageCache.value.get(responseConversationId);
+            if (
+              cachedMsgs &&
+              cachedMsgs[aiMessageIndex] &&
+              cachedMsgs[aiMessageIndex].type === "ai"
+            ) {
+              cachedMsgs[aiMessageIndex].content = newContent;
+            }
+
+            // 修改滚动逻辑，尊重用户滚动意图
+            if (!userIntentionalScroll.value) {
+              nextTick(() => scrollToBottom(false));
+            }
           }
+        } catch (err) {
+          console.error("移动端处理分析流式数据时出错:", err);
         }
       },
       // onComplete
@@ -1275,9 +1311,11 @@ const onHistoryRefresh = async () => {
 // --- 滚动逻辑 (与之前类似) ---
 const scrollToBottom = async (forceScroll = false) => {
   await nextTick();
+
   // 当强制滚动时，重置用户滚动意图
   if (forceScroll) {
     userIntentionalScroll.value = false;
+    userScrolling.value = false;
   }
 
   // 仅当强制滚动或没有用户滚动意图时才滚动
@@ -1505,21 +1543,16 @@ const handleDialogClose = (action, done) => {
 onMounted(async () => {
   await fetchUserInfo();
 
-  // 检查是否从账单分析跳转而来
-  if (route.query.mode === "analysis" && route.query.conversationId) {
-    await handleAnalysisMode(
-      route.query.conversationId as string,
-      route.query.timeRange as string,
-      route.query.timeDesc as string
-    );
-  } else {
-    // 正常加载，只加载历史记录，不自动创建新对话
-    await onHistoryRefresh();
-  }
-
+  // 首先初始化UI相关的事件监听器，确保它们总是被注册
   // 添加滚动监听
   if (messageArea.value) {
+    console.log("移动端绑定滚动事件监听器");
+    // 先移除可能存在的旧监听器，防止重复
+    messageArea.value.removeEventListener("scroll", handleScroll);
+    // 添加新的监听器
     messageArea.value.addEventListener("scroll", handleScroll);
+  } else {
+    console.warn("移动端消息区域元素不存在，无法绑定滚动事件");
   }
 
   // 添加视口高度调整
@@ -1533,6 +1566,18 @@ onMounted(async () => {
       // 输入框获取焦点时延迟滚动到底部
       setTimeout(() => scrollToBottom(true), 300);
     });
+  }
+
+  // 检查是否从账单分析跳转而来
+  if (route.query.mode === "analysis" && route.query.conversationId) {
+    await handleAnalysisMode(
+      route.query.conversationId as string,
+      route.query.timeRange as string,
+      route.query.timeDesc as string
+    );
+  } else {
+    // 正常加载，只加载历史记录，不自动创建新对话
+    await onHistoryRefresh();
   }
 });
 
