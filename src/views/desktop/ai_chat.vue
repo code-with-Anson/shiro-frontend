@@ -1045,49 +1045,60 @@ const sendAnalysisPrompt = async (
     // 更新消息缓存
     messageCache.value.set(requestConversationId, [...messages.value]);
 
-    let aiResponse = "";
+    // 强制滚动到底部以显示用户消息
+    scrollToBottom(true);
 
     // 使用封装的API发送请求
     await sendChatMessage(
       prompt,
       requestConversationId,
       (chunk, responseConversationId) => {
-        if (!responseConversationId)
+        // 确保有有效的会话ID
+        if (!responseConversationId) {
           responseConversationId = requestConversationId;
+        }
 
-        // 累加到生成内容缓存中
-        const currentContent =
-          generatingContentCache.value.get(responseConversationId) || "";
-
-        // 判断是否是第一块内容
-        const isFirstChunk = currentContent === "";
-
-        generatingContentCache.value.set(
-          responseConversationId,
-          currentContent + chunk
-        );
-
-        // 如果是当前显示的对话，更新UI
-        if (responseConversationId === currentConversationId.value) {
-          messages.value[aiMessageIndex].content =
-            generatingContentCache.value.get(responseConversationId);
-
-          // 修改这部分：如果用户已在底部，继续自动滚动
-          if (isFirstChunk && !userIntentionalScroll.value) {
-            // 首次消息且用户未滚动
-            scrollToBottom(false);
-          } else if (!userIntentionalScroll.value) {
-            // 用户已在底部，应继续自动滚动
-            scrollToBottom(false);
+        try {
+          // 检查是否收到有效的数据块
+          if (!chunk) {
+            console.log("收到空数据块，跳过处理");
+            return;
           }
+
+          console.log("接收数据块: ", chunk.length, "字符");
+
+          // 累加到生成内容缓存中
+          const currentContent =
+            generatingContentCache.value.get(responseConversationId) || "";
+          const newContent = currentContent + chunk;
+          generatingContentCache.value.set(responseConversationId, newContent);
+
+          // 如果是当前显示的对话，更新UI
+          if (
+            responseConversationId === currentConversationId.value &&
+            aiMessageIndex < messages.value.length
+          ) {
+            // 直接更新消息内容
+            messages.value[aiMessageIndex].content = newContent;
+
+            // 简化滚动逻辑，只要用户没有明确向上滚动，都尝试滚动到底部
+            if (!userScrolling.value) {
+              nextTick(() => scrollToBottom(false));
+            }
+          }
+        } catch (err) {
+          console.error("处理流式数据时出错:", err);
         }
       },
       // 响应完成回调
       async (responseConversationId) => {
-        if (!responseConversationId)
+        if (!responseConversationId) {
           responseConversationId = requestConversationId;
+        }
 
         try {
+          console.log("响应完成，会话ID:", responseConversationId);
+
           // 从服务器获取最新的完整消息
           const latestMessages = await getChatHistory(responseConversationId);
 
@@ -1099,29 +1110,33 @@ const sendAnalysisPrompt = async (
             if (responseConversationId === currentConversationId.value) {
               messages.value = latestMessages;
               isGenerating.value = false;
+
+              // 完成后再次尝试滚动到底部
+              nextTick(() => scrollToBottom(true));
             }
           }
 
-          // 清理生成内容缓存，已不再需要
+          // 清理生成内容缓存
           generatingContentCache.value.delete(responseConversationId);
         } catch (error) {
           console.error("获取完整消息失败:", error);
-        }
+        } finally {
+          // 完成后移除生成标记
+          generatingMessages.value.delete(responseConversationId);
 
-        // 完成后移除生成标记
-        generatingMessages.value.delete(responseConversationId);
-
-        if (responseConversationId === currentConversationId.value) {
-          isGenerating.value = false;
-          isSending.value = false;
+          if (responseConversationId === currentConversationId.value) {
+            isGenerating.value = false;
+            isSending.value = false;
+          }
         }
       },
       // 错误处理
       (error, responseConversationId) => {
         console.error("账单分析请求失败:", error);
 
-        if (!responseConversationId)
+        if (!responseConversationId) {
           responseConversationId = requestConversationId;
+        }
 
         // 清理生成内容缓存
         generatingContentCache.value.delete(responseConversationId);
@@ -1134,8 +1149,9 @@ const sendAnalysisPrompt = async (
           isSending.value = false;
 
           ElMessage({
-            message: `分析请求失败: ${error.message}`,
+            message: `分析请求失败: ${error.message || "未知错误"}`,
             type: "error",
+            duration: 5000,
           });
 
           messages.value.push({
@@ -1151,6 +1167,8 @@ const sendAnalysisPrompt = async (
     isGenerating.value = false;
     isSending.value = false;
     generatingMessages.value.delete(currentConversationId.value);
+
+    ElMessage.error("发送分析请求失败，请稍后重试");
   }
 };
 
