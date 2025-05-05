@@ -76,15 +76,38 @@ export async function sendChatMessage(
             accumulatedResponse = responseText;
 
             if (newChunk) {
-              // 传递会话ID以便调用者可以验证
-              onChunk(newChunk, conversationId);
+              // 解析SSE格式 - 提取data:后的内容
+              const lines = newChunk.split("\n");
+              let processedContent = "";
+
+              for (const line of lines) {
+                if (line.trim()) {
+                  const match = line.match(/^data:(.*)$/);
+                  if (match) {
+                    // 提取data:后的内容
+                    const content = match[1];
+                    if (content) {
+                      processedContent += content;
+                    }
+                  } else {
+                    // 如果不是data:格式但有内容，也包括它
+                    processedContent += line;
+                  }
+                }
+              }
+
+              // 只传递处理后的实际内容
+              if (processedContent) {
+                onChunk(processedContent, conversationId);
+              }
             }
           }
         },
         headers: {
           "Cache-Control": "no-cache",
           "Content-Type": "application/json",
-          Accept: "text/html;charset=UTF-8",
+          // 修改这一行，确保与后端produces值完全匹配
+          Accept: "text/event-stream;charset=UTF-8",
         },
       }
     );
