@@ -1211,6 +1211,45 @@ const sendMessage = async () => {
       time: getCurrentTime(),
     });
 
+    // 检查是否是新会话的第一条消息，如果是，则立即更新标题
+    const currentChat = chatHistory.value.find(
+      (c) => c.conversationId === currentConversationId.value
+    );
+
+    // 如果是"新对话"并且这是第一个或第二个消息(考虑到可能有欢迎消息)
+    if (
+      currentChat &&
+      currentChat.topic === "新对话" &&
+      messages.value.length <= 3 // 允许有欢迎消息存在
+    ) {
+      // 直接使用用户消息作为标题，太长则截取
+      let newTitle = userInput.value;
+      if (newTitle.length > 18) {
+        newTitle = newTitle.substring(0, 18) + "...";
+      }
+
+      console.log("准备更新会话标题为:", newTitle);
+
+      // 立即更新会话标题
+      try {
+        await updateConversationTopic(currentConversationId.value, newTitle);
+
+        // 更新本地缓存的会话列表
+        const index = chatHistory.value.findIndex(
+          (c) => c.conversationId === currentConversationId.value
+        );
+        if (index !== -1) {
+          chatHistory.value[index].topic = newTitle;
+        }
+        console.log("已将首次提问设为标题:", newTitle);
+
+        // 强制刷新视图
+        await nextTick();
+      } catch (error) {
+        console.error("更新会话标题失败:", error);
+      }
+    }
+
     // 创建AI消息占位
     const aiMessageIndex = messages.value.length;
     messages.value.push({
@@ -1606,6 +1645,8 @@ onUnmounted(() => {
   line-height: 1.5;
   font-size: 15px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: fit-content; /* 添加此行，使宽度适应内容 */
+  max-width: 100%; /* 添加此行，确保不超出容器 */
 }
 
 .message-time {
@@ -1624,7 +1665,12 @@ onUnmounted(() => {
   color: white;
   border-bottom-right-radius: 6px;
 }
-
+/* 对用户消息做额外处理，确保右对齐 */
+.user .message-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* 确保用户消息靠右对齐 */
+}
 .ai .message-text {
   background-color: #f2f3f5;
   color: #333;
