@@ -1,27 +1,26 @@
 <template>
-  <!-- 修改账单页面的导航栏，移除左侧返回按钮 -->
-  <van-nav-bar title="我的账单">
-    <template #right>
-      <van-icon name="chart-trending-o" size="18" @click="goToStatistics" />
-    </template>
-  </van-nav-bar>
+  <!-- 移除 van-sticky，改用 CSS 固定定位 -->
+  <div class="fixed-header-container">
+    <!-- 导航栏 -->
+    <van-nav-bar title="我的账单">
+      <template #right>
+        <van-icon name="chart-trending-o" size="18" @click="goToStatistics" />
+      </template>
+    </van-nav-bar>
+
+    <!-- 优化月份选择栏布局 -->
+    <div class="compact-month-selector">
+      <div class="month-selector-left" @click="changeMonthEditStatus">
+        <span class="month-title">{{ currentYear }}年{{ currentMonth }}月</span>
+      </div>
+      <div class="month-stats">
+        <span class="month-cost">支出: ￥{{ MonthCost.toFixed(2) }}</span>
+        <span class="month-earn">收入: ￥{{ MonthEarn.toFixed(2) }}</span>
+      </div>
+    </div>
+  </div>
 
   <div class="m_bills">
-    <!-- Sticky 固定顶部 -->
-    <van-sticky>
-      <van-cell
-        :title="`${currentYear}年${currentMonth}月支出 :`"
-        :value="`￥${MonthCost.toFixed(2)}`"
-        :label="`本月收入 ￥${MonthEarn.toFixed(2)}`"
-        title-class="month-title"
-        value-class="month-cost"
-        label-class="month-earn"
-        class="top-bar"
-        is-link
-        @click="changeMonthEditStatus"
-      />
-    </van-sticky>
-
     <!-- 弹出层形式的日期选择器 -->
     <van-popup v-model:show="showMonthEdit" position="bottom" round>
       <van-date-picker
@@ -78,8 +77,7 @@
 
 <script setup lang="ts">
 import { getAllCategories } from "@/api/category";
-import { ref } from "vue";
-import { onMounted } from "vue";
+import { ref, onMounted, nextTick } from "vue";
 import { type DatePickerColumnType } from "vant";
 import { getMonthBills } from "@/api/bill";
 import { useRouter } from "vue-router";
@@ -271,20 +269,101 @@ const goToStatistics = () => {
   router.push("/statistics");
 };
 
+// 添加这个函数来调整内容容器的顶部内边距
+const adjustContentPadding = () => {
+  nextTick(() => {
+    const headerContainer = document.querySelector(".fixed-header-container");
+    const contentContainer = document.querySelector(".m_bills");
+    if (headerContainer && contentContainer) {
+      const height = headerContainer.getBoundingClientRect().height;
+      // 增加5px的安全边距
+      contentContainer.style.paddingTop = `${height + 5}px`;
+    }
+  });
+};
+
 onMounted(async () => {
   console.log(currentMonth.value, currentYear.value);
   try {
     await getUserCategories();
     await getMonthBill();
+    // 在数据加载后调整内边距
+    adjustContentPadding();
   } catch (error) {
     console.error("初始化数据失败：", error);
   }
+
+  // 添加窗口大小变化事件监听器
+  window.addEventListener("resize", adjustContentPadding);
 });
 </script>
 
 <style scoped>
+/* 固定顶部容器样式 */
+.fixed-header-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  width: 100%;
+  z-index: 999;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 为新的紧凑月份选择器添加样式 */
+.compact-month-selector {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #fff;
+  border-bottom: 0.1rem solid #39c5bb;
+}
+
+.month-selector-left {
+  display: flex;
+  align-items: center;
+}
+
+.month-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #52a1e5;
+}
+
+.month-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.month-cost {
+  font-size: 14px;
+  color: #39c5bb;
+  font-weight: bold;
+}
+
+.month-earn {
+  font-size: 14px;
+  color: #ff7875;
+  font-weight: bold;
+  margin-top: 2px;
+}
+
+/* 移除占位符和固定的顶部内边距 */
 .m_bills {
-  padding-bottom: 9rem; /* 替换原来的 margin-bottom */
+  padding-bottom: 9rem;
+  /* 不设置固定的padding-top，让JavaScript动态设置 */
+}
+
+.top-bar {
+  border-bottom-style: solid;
+  border-bottom-color: #39c5bb;
+  border-width: 0.1rem;
+  margin-top: -1px; /* 消除可能的间隙 */
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
 }
 
 :deep(.van-cell__value.month-cost) {
@@ -351,11 +430,6 @@ onMounted(async () => {
   bottom: 5rem;
   right: 1rem;
 }
-.top-bar {
-  border-bottom-style: solid;
-  border-bottom-color: #39c5bb;
-  border-width: 0.1rem;
-}
 
 :deep(.van-cell__label.bill-detail) {
   width: 100%;
@@ -363,5 +437,15 @@ onMounted(async () => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 10rem;
+}
+
+/* 调整 van-nav-bar 和月份选择栏的样式 */
+:deep(.van-nav-bar) {
+  height: 40px !important; /* 默认通常是 46px */
+  line-height: 40px !important;
+}
+
+:deep(.van-nav-bar__title) {
+  font-size: 16px !important; /* 如果需要可以减小标题字体大小 */
 }
 </style>
