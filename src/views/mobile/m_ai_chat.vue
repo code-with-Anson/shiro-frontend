@@ -113,17 +113,6 @@
               </div>
             </div>
           </div>
-
-          <!-- 滚动到底部按钮 -->
-          <transition name="van-fade">
-            <div
-              v-if="showScrollButton && !isScrolling"
-              class="scroll-bottom-button-mobile"
-              @click="handleScrollToBottom"
-            >
-              <van-icon name="arrow-down" />
-            </div>
-          </transition>
         </div>
 
         <!-- 输入区域 -->
@@ -155,6 +144,17 @@
           </van-button>
         </div>
       </div>
+
+      <!-- 滚动到底部按钮移到这里 -->
+      <transition name="van-fade">
+        <div
+          v-if="showScrollButton && !isScrolling"
+          class="scroll-bottom-button-mobile"
+          @click="handleScrollToBottom"
+        >
+          <van-icon name="arrow-down" />
+        </div>
+      </transition>
     </div>
 
     <!-- 历史记录侧滑栏 -->
@@ -1299,28 +1299,23 @@ const handleScrollToBottom = () => {
 
 const handleScroll = () => {
   if (!messageArea.value || isScrolling.value) return;
-  const threshold = 100; // 增加阈值
+  const threshold = 150; // 增加阈值，更早显示按钮
   const isNearBottom =
     messageArea.value.scrollHeight -
       messageArea.value.scrollTop -
       messageArea.value.clientHeight <
     threshold;
 
-  // 保存之前的状态
   const prevState = userIntentionalScroll.value;
 
   if (!isNearBottom) {
     userScrolling.value = true;
     userIntentionalScroll.value = true; // 设置明确的用户意图标志
-    showScrollButton.value = true;
+    showScrollButton.value = true; // 显示滚动按钮
 
     // 只在状态变化时记录日志
     if (!prevState) {
-      console.log("用户向上滚动，禁用自动滚动", {
-        scrollHeight: messageArea.value.scrollHeight,
-        scrollTop: messageArea.value.scrollTop,
-        clientHeight: messageArea.value.clientHeight,
-      });
+      console.log("用户向上滚动，显示按钮");
     }
   } else {
     // 接近底部时（5像素内）重置滚动状态
@@ -1332,11 +1327,10 @@ const handleScroll = () => {
     ) {
       userScrolling.value = false;
       userIntentionalScroll.value = false; // 重置用户意图标志
-      showScrollButton.value = false;
+      showScrollButton.value = false; // 隐藏滚动按钮
 
-      // 只在状态变化时记录日志
       if (prevState) {
-        console.log("用户已到底部，启用自动滚动");
+        console.log("用户已到底部，隐藏按钮");
       }
     }
   }
@@ -1773,28 +1767,21 @@ onUnmounted(() => {
 
 /* --- 滚动到底部按钮 --- */
 .scroll-bottom-button-mobile {
-  position: absolute;
-  bottom: 15px;
+  position: fixed; /* 改为固定定位，不受父容器影响 */
+  bottom: 120px; /* 增加底部距离，确保在输入框上方 */
   right: 15px;
-  width: 36px;
-  height: 36px;
-  background-color: rgba(0, 122, 255, 0.8);
+  width: 40px; /* 稍微增大尺寸 */
+  height: 40px;
+  background-color: rgba(0, 122, 255, 0.85);
   border-radius: 50%;
   color: white;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2); /* 增强阴影效果 */
   cursor: pointer;
-  z-index: 10;
+  z-index: 1000; /* 增大z-index确保在最上层 */
   transition: opacity 0.3s, transform 0.2s;
-}
-.scroll-bottom-button-mobile:hover {
-  background-color: #007aff;
-  transform: scale(1.05);
-}
-.scroll-bottom-button-mobile .van-icon {
-  font-size: 18px;
 }
 
 /* --- 历史记录侧滑栏 --- */
