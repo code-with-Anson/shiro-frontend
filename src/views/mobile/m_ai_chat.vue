@@ -408,6 +408,8 @@ const showDeleteConfirmDialog = ref(false); // 删除确认弹窗
 const userScrolling = ref(false);
 const showScrollButton = ref(false);
 const isScrolling = ref(false);
+// 添加明确的用户滚动意图标记
+const userIntentionalScroll = ref(false);
 
 // 历史记录相关状态
 const showHistoryPopup = ref(false);
@@ -745,8 +747,8 @@ const sendMessage = async () => {
             cachedMsgs[aiMessageIndex].content = newContent;
           }
 
-          if (!userScrolling.value) {
-            scrollToBottom(); // 流式输出时滚动
+          if (!userIntentionalScroll.value) {
+            scrollToBottom(false); // 流式输出时滚动
           }
         }
       },
@@ -1273,7 +1275,13 @@ const onHistoryRefresh = async () => {
 // --- 滚动逻辑 (与之前类似) ---
 const scrollToBottom = async (forceScroll = false) => {
   await nextTick();
-  if (messageArea.value && (forceScroll || !userScrolling.value)) {
+  // 当强制滚动时，重置用户滚动意图
+  if (forceScroll) {
+    userIntentionalScroll.value = false;
+  }
+
+  // 仅当强制滚动或没有用户滚动意图时才滚动
+  if (messageArea.value && (forceScroll || !userIntentionalScroll.value)) {
     isScrolling.value = true;
     messageArea.value.scrollTop = messageArea.value.scrollHeight;
     setTimeout(() => {
@@ -1284,6 +1292,7 @@ const scrollToBottom = async (forceScroll = false) => {
 
 const handleScrollToBottom = () => {
   userScrolling.value = false;
+  userIntentionalScroll.value = false; // 重置用户明确滚动意图
   scrollToBottom(true);
   showScrollButton.value = false;
 };
@@ -1297,10 +1306,24 @@ const handleScroll = () => {
       messageArea.value.clientHeight <
     threshold;
 
+  // 保存之前的状态
+  const prevState = userIntentionalScroll.value;
+
   if (!isNearBottom) {
     userScrolling.value = true;
+    userIntentionalScroll.value = true; // 设置明确的用户意图标志
     showScrollButton.value = true;
+
+    // 只在状态变化时记录日志
+    if (!prevState) {
+      console.log("用户向上滚动，禁用自动滚动", {
+        scrollHeight: messageArea.value.scrollHeight,
+        scrollTop: messageArea.value.scrollTop,
+        clientHeight: messageArea.value.clientHeight,
+      });
+    }
   } else {
+    // 接近底部时（5像素内）重置滚动状态
     if (
       messageArea.value.scrollHeight -
         messageArea.value.scrollTop -
@@ -1308,9 +1331,28 @@ const handleScroll = () => {
       5
     ) {
       userScrolling.value = false;
+      userIntentionalScroll.value = false; // 重置用户意图标志
       showScrollButton.value = false;
+
+      // 只在状态变化时记录日志
+      if (prevState) {
+        console.log("用户已到底部，启用自动滚动");
+      }
     }
   }
+};
+
+// 在handleScroll函数后添加
+// 判断是否应该自动滚动
+const shouldAutoScroll = () => {
+  // 如果用户有明确滚动意图，不自动滚动
+  if (userIntentionalScroll.value) {
+    console.log(`自动滚动判断: false (用户有滚动意图)`);
+    return false;
+  }
+
+  // 没有明确滚动意图时，允许自动滚动
+  return true;
 };
 
 // --- 输入处理 (与之前类似) ---
