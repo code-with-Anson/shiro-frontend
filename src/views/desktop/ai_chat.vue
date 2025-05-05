@@ -50,6 +50,7 @@
           v-else
           v-for="(chat, idx) in chatHistory"
           :key="chat.conversationId"
+          :data-id="chat.conversationId"
           :class="[
             'history-item',
             { active: currentConversationId === chat.conversationId },
@@ -67,6 +68,7 @@
               v-if="deleteMode"
               :model-value="selectedConversations.includes(chat.conversationId)"
               @click.stop="toggleSelection(chat.conversationId)"
+              :data-id="chat.conversationId"
               class="history-checkbox"
             ></el-checkbox>
             <span class="history-title">{{ chat.topic }}</span>
@@ -243,6 +245,7 @@
       title="确认批量删除"
       width="30%"
       :close-on-click-modal="false"
+      @close="handleDialogClose"
     >
       <span
         >确定要删除选中的
@@ -250,7 +253,7 @@
       >
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="showDeleteConfirmDialog = false">取消</el-button>
+          <el-button @click="cancelDelete">取消</el-button>
           <el-button type="danger" @click="deleteSelected" :loading="isDeleting"
             >确认删除</el-button
           >
@@ -277,7 +280,6 @@ import {
   createConversation,
   getConversationHistory,
   updateConversationTopic,
-  deleteConversation,
   getChatHistory,
   autoUpdateConversationTopic,
   formatTime,
@@ -288,6 +290,52 @@ import {
 import { getUserInfos } from "@/api/user";
 import MarkdownIt from "markdown-it";
 import { v4 as uuidv4 } from "uuid";
+import axiosInstance from "@/utils/axios"; // 添加这一行导入axios实例
+
+// 判断响应是否成功的辅助函数
+const isSuccessResponse = (code: any): boolean => {
+  return code === 0 || code === "0" || code === "20039";
+};
+
+// 重新实现删除会话函数
+const deleteConversation = async (
+  param: string | string[] | { conversationIds: string[] }
+) => {
+  try {
+    // 确定要发送的数据结构
+    let requestData: { conversationIds: string[] };
+
+    if (
+      typeof param === "object" &&
+      !Array.isArray(param) &&
+      "conversationIds" in param
+    ) {
+      // 如果是 {conversationIds: [...]} 格式，直接使用
+      requestData = param;
+    } else {
+      // 如果是单个ID或ID数组，转换为正确格式
+      const ids = Array.isArray(param) ? param : [param];
+      requestData = { conversationIds: ids };
+    }
+
+    console.log("删除请求参数:", JSON.stringify(requestData));
+
+    const response = await axiosInstance.post(
+      "/ai/user-conversation/delete",
+      requestData
+    );
+
+    if (!isSuccessResponse(response.data.code)) {
+      throw new Error(response.data.msg || "删除会话失败");
+    }
+  } catch (error: any) {
+    console.error("删除会话失败:", error);
+    throw new Error(
+      error.response?.data?.msg || error.message || "删除会话失败"
+    );
+  }
+};
+
 // 批量删除相关
 const deleteMode = ref(false); // 是否处于删除模式
 const selectedConversations = ref<string[]>([]); // 已选中要删除的会话ID
@@ -615,18 +663,19 @@ const toggleSelection = (conversationId: string) => {
 };
 
 // 打开删除确认对话框
-const confirmDelete = (conversationId?: string) => {
-  if (conversationId) {
-    // 单个删除模式
-    deletingConversationId.value = conversationId;
-    deleteDialogVisible.value = true;
-  } else {
+const confirmDelete = (param?: any) => {
+  // 如果传入的是事件对象或没有参数，则视为批量删除模式
+  if (!param || param instanceof Event || param.isTrusted) {
     // 批量删除模式
     if (selectedConversations.value.length === 0) {
       ElMessage.warning("请至少选择一个对话");
       return;
     }
     showDeleteConfirmDialog.value = true;
+  } else {
+    // 单个删除模式 - param 是会话ID
+    deletingConversationId.value = param;
+    deleteDialogVisible.value = true;
   }
 };
 
@@ -637,21 +686,15 @@ const deleteSelected = async () => {
   try {
     isDeleting.value = true;
 
-    // 过滤出有效的字符串ID
-    const conversationsToDelete = selectedConversations.value.filter(
-      (id) => typeof id === "string"
-    );
+    // 复制一份当前选中的会话ID，防止后续操作中被修改
+    const conversationsToDelete = [...selectedConversations.value];
 
-    if (conversationsToDelete.length === 0) {
-      ElMessage.warning("没有有效的会话ID可删除");
-      return;
-    }
-
+    // 检查当前会话是否在选中列表中
     const wasCurrentConversationSelected = conversationsToDelete.includes(
       currentConversationId.value
     );
 
-    console.log("过滤后要删除的ID:", conversationsToDelete);
+    console.log("准备删除的会话ID:", conversationsToDelete);
 
     // 使用正确的格式调用API
     await deleteConversation({ conversationIds: conversationsToDelete });
@@ -661,10 +704,23 @@ const deleteSelected = async () => {
 
     ElMessage.success("删除成功");
 
-    // 如果当前会话在已删除列表中，清空消息并需要选择其他会话
+    // 如果当前会话在已删除列表中，清空消息并重置当前会话ID
     if (wasCurrentConversationSelected) {
       messages.value = [];
       currentConversationId.value = "";
+
+      // 从消息缓存中移除已删除的会话
+      conversationsToDelete.forEach((id) => {
+        if (messageCache.value.has(id)) {
+          messageCache.value.delete(id);
+        }
+        if (generatingContentCache.value.has(id)) {
+          generatingContentCache.value.delete(id);
+        }
+        if (generatingMessages.value.has(id)) {
+          generatingMessages.value.delete(id);
+        }
+      });
     }
 
     // 重新加载会话列表
@@ -673,10 +729,29 @@ const deleteSelected = async () => {
     // 退出删除模式
     toggleDeleteMode();
   } catch (error: any) {
+    console.error("删除会话失败:", error);
     ElMessage.error(`删除会话失败: ${error.message || "请重试"}`);
   } finally {
     isDeleting.value = false;
+    showDeleteConfirmDialog.value = false;
+
+    // 确保即使出错也退出删除模式
+    if (deleteMode.value) {
+      deleteMode.value = false;
+      selectedConversations.value = [];
+    }
   }
+};
+
+// 取消删除操作
+const cancelDelete = () => {
+  showDeleteConfirmDialog.value = false;
+};
+
+// 确保对话框关闭时重置状态
+const handleDialogClose = () => {
+  isDeleting.value = false;
+  // 不再调用 done 函数
 };
 
 // 分页切换
