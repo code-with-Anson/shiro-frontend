@@ -422,6 +422,95 @@ const findLastAiMessageIndex = (msgArray: Message[]) => {
   return -1;
 };
 
+// 添加一个新变量来跟踪用户最后一次手动滚动的时间
+const lastUserScrollTime = ref(0);
+// 增加滚动阈值，给予用户更多控制权
+const USER_SCROLL_THRESHOLD = 5000; // 从3000毫秒增加到5000毫秒
+// 增加一个明确的用户手动滚动意图标志
+const userIntentionalScroll = ref(false);
+
+// 改进处理用户滚动事件的函数，确保它能更准确捕获用户滚动意图
+const handleScroll = () => {
+  if (!messageArea.value || isScrolling.value) return;
+
+  const isAtBottom =
+    Math.abs(
+      messageArea.value.scrollHeight -
+        messageArea.value.scrollTop -
+        messageArea.value.clientHeight
+    ) < 10;
+
+  // 更新最后滚动时间
+  lastUserScrollTime.value = Date.now();
+
+  const prevState = userIntentionalScroll.value;
+
+  // 非底部滚动视为有意识的用户滚动
+  if (!isAtBottom) {
+    userScrolling.value = true;
+    userIntentionalScroll.value = true; // 设置明确的用户意图标志
+    showScrollButton.value = true;
+
+    // 只在状态变化时记录日志
+    if (!prevState) {
+      console.log("用户向上滚动，禁用自动滚动", {
+        scrollHeight: messageArea.value.scrollHeight,
+        scrollTop: messageArea.value.scrollTop,
+        clientHeight: messageArea.value.clientHeight,
+      });
+    }
+  } else {
+    // 用户主动滚动到底部，重置滚动状态
+    userScrolling.value = false;
+    userIntentionalScroll.value = false; // 重置用户意图标志
+    showScrollButton.value = false;
+
+    // 只在状态变化时记录日志
+    if (prevState) {
+      console.log("用户已到底部，启用自动滚动");
+    }
+  }
+};
+
+// 修改自动滚动判断逻辑，更严格地遵守用户意图
+const shouldAutoScroll = () => {
+  // 如果用户有明确滚动意图，在AI生成内容期间完全尊重用户意图，不自动滚动
+  if (userIntentionalScroll.value) {
+    // 移除时间阈值判断，确保在用户主动滚回底部前不会自动滚动
+    console.log(`自动滚动判断: false (用户有滚动意图)`);
+    return false;
+  }
+
+  // 没有明确滚动意图时，允许自动滚动
+  return true;
+};
+
+// 修改滚动到底部的函数，确保强制时完全重置用户意图
+const scrollToBottom = async (forceScroll = false) => {
+  await nextTick();
+  // 当强制滚动时，重置用户滚动意图
+  if (forceScroll) {
+    userIntentionalScroll.value = false;
+  }
+
+  // 仅当强制滚动或没有用户滚动意图时才滚动
+  if (messageArea.value && (forceScroll || !userIntentionalScroll.value)) {
+    isScrolling.value = true;
+    messageArea.value.scrollTop = messageArea.value.scrollHeight;
+    setTimeout(() => {
+      isScrolling.value = false;
+    }, 300);
+  }
+};
+
+// 修改手动滚动到底部的函数
+const handleScrollToBottom = () => {
+  // 用户点击"滚动到底部"按钮时，重置所有滚动状态
+  userScrolling.value = false;
+  userIntentionalScroll.value = false; // 重置用户明确滚动意图
+  scrollToBottom(true);
+};
+
 // 切换对话
 const switchChat = async (conversationId: string) => {
   if (currentConversationId.value === conversationId) return;
@@ -829,254 +918,6 @@ const loadConversations = async () => {
   }
 };
 
-// 修改：滚动到底部的函数
-const scrollToBottom = async (forceScroll = false) => {
-  await nextTick();
-  if (messageArea.value && (forceScroll || !userScrolling.value)) {
-    isScrolling.value = true;
-    messageArea.value.scrollTop = messageArea.value.scrollHeight;
-    setTimeout(() => {
-      isScrolling.value = false;
-    }, 300);
-  }
-};
-
-// 按钮点击事件：强制滚动到底部并启用自动滚动
-const handleScrollToBottom = () => {
-  userScrolling.value = false;
-  scrollToBottom(true);
-  showScrollButton.value = false;
-};
-
-// 修改处理用户滚动事件的函数
-const handleScroll = () => {
-  if (!messageArea.value || isScrolling.value) return;
-
-  const isAtBottom =
-    Math.abs(
-      messageArea.value.scrollHeight -
-        messageArea.value.scrollTop -
-        messageArea.value.clientHeight
-    ) < 10;
-
-  // 用户手动滚动时，记录状态
-  if (!isAtBottom) {
-    userScrolling.value = true;
-    showScrollButton.value = true;
-  } else {
-    userScrolling.value = false;
-    showScrollButton.value = false;
-  }
-};
-
-// 处理键盘事件
-const handleKeyDown = (event: {
-  shiftKey: any;
-  preventDefault: () => void;
-}) => {
-  // 如果按下Shift键+Enter，允许换行（不做处理）
-  if (event.shiftKey) {
-    return;
-  }
-
-  // 非Shift+Enter情况，阻止默认行为（换行）
-  event.preventDefault();
-
-  // 如果满足发送条件，则发送消息
-  if (
-    !isSending.value &&
-    currentConversationId.value &&
-    userInput.value.trim()
-  ) {
-    sendMessage();
-  }
-};
-
-// 发送消息
-const sendMessage = async () => {
-  if (
-    !userInput.value.trim() ||
-    isSending.value ||
-    !currentConversationId.value
-  )
-    return;
-
-  const userMessage = userInput.value.trim();
-  userInput.value = ""; // 清空输入框
-
-  // 添加用户消息
-  messages.value.push({
-    type: "user",
-    content: userMessage,
-    time: getCurrentTime(),
-  });
-
-  isSending.value = true;
-  isGenerating.value = true;
-
-  // 记录当前进行请求的会话ID
-  const requestConversationId = currentConversationId.value;
-
-  // 标记当前会话正在生成消息
-  generatingMessages.value.add(requestConversationId);
-
-  try {
-    // 创建AI消息占位
-    const aiMessageIndex = messages.value.length;
-    messages.value.push({
-      type: "ai",
-      content: "",
-      time: getCurrentTime(),
-    });
-
-    // 初始化生成内容缓存
-    generatingContentCache.value.set(requestConversationId, "");
-
-    // 更新消息缓存
-    messageCache.value.set(requestConversationId, [...messages.value]);
-
-    // 使用封装的API发送请求
-    await sendChatMessage(
-      userMessage,
-      requestConversationId,
-      (chunk, responseConversationId) => {
-        if (!responseConversationId)
-          responseConversationId = requestConversationId;
-
-        // 累加到生成内容缓存中
-        const currentContent =
-          generatingContentCache.value.get(responseConversationId) || "";
-        generatingContentCache.value.set(
-          responseConversationId,
-          currentContent + chunk
-        );
-
-        // 如果是当前显示的对话，更新UI
-        if (responseConversationId === currentConversationId.value) {
-          messages.value[aiMessageIndex].content =
-            generatingContentCache.value.get(responseConversationId);
-
-          // 只有当用户未主动向上滚动时，才自动滚动
-          if (!userScrolling.value) {
-            scrollToBottom();
-          }
-        }
-      },
-      // 响应完成回调
-      async (responseConversationId) => {
-        if (!responseConversationId)
-          responseConversationId = requestConversationId;
-
-        try {
-          // 从服务器获取最新的完整消息
-          const latestMessages = await getChatHistory(responseConversationId);
-
-          // 更新缓存为服务器最新数据
-          if (latestMessages && latestMessages.length > 0) {
-            messageCache.value.set(responseConversationId, latestMessages);
-
-            // 如果是当前会话，更新UI
-            if (responseConversationId === currentConversationId.value) {
-              messages.value = latestMessages;
-              isGenerating.value = false;
-              scrollToBottom();
-            }
-          }
-
-          // 清理生成内容缓存，已不再需要
-          generatingContentCache.value.delete(responseConversationId);
-        } catch (error) {
-          console.error("获取完整消息失败:", error);
-        }
-
-        // 完成后移除生成标记
-        generatingMessages.value.delete(responseConversationId);
-
-        if (responseConversationId === currentConversationId.value) {
-          isGenerating.value = false;
-          isSending.value = false;
-        }
-
-        // 触发自动更新会话主题的逻辑
-        const currentChat = chatHistory.value.find(
-          (c) => c.conversationId === responseConversationId
-        );
-
-        if (
-          currentChat &&
-          currentChat.topic === "新对话" &&
-          messages.value.length <= 3
-        ) {
-          autoUpdateConversationTopic(
-            responseConversationId,
-            userMessage,
-            currentChat.topic
-          )
-            .then((newTopic) => {
-              if (newTopic) {
-                const index = chatHistory.value.findIndex(
-                  (c) => c.conversationId === responseConversationId
-                );
-                if (index !== -1) {
-                  chatHistory.value[index].topic = newTopic;
-                }
-              }
-            })
-            .catch((error) => {
-              console.error("更新会话主题失败:", error);
-            });
-        }
-      },
-      // 错误处理
-      (error, responseConversationId) => {
-        if (!responseConversationId)
-          responseConversationId = requestConversationId;
-
-        console.error("聊天请求失败:", error);
-
-        // 清理生成内容缓存
-        generatingContentCache.value.delete(responseConversationId);
-
-        // 移除生成标记
-        generatingMessages.value.delete(responseConversationId);
-
-        if (responseConversationId === currentConversationId.value) {
-          isGenerating.value = false;
-          isSending.value = false;
-
-          ElMessage({
-            message: `聊天请求失败: ${error.message}`,
-            type: "error",
-          });
-
-          messages.value.push({
-            type: "system",
-            content: "通信出错！与AI的连接似乎断开了...",
-            time: getCurrentTime(),
-          });
-        }
-      }
-    );
-  } catch (error: any) {
-    console.error("聊天请求失败:", error);
-
-    isGenerating.value = false;
-    isSending.value = false;
-    generatingMessages.value.delete(requestConversationId);
-
-    ElMessage({
-      message: `聊天请求失败: ${error.message}`,
-      type: "error",
-    });
-
-    messages.value.push({
-      type: "system",
-      content: "通信出错！与AI的连接似乎断开了...",
-      time: getCurrentTime(),
-    });
-  }
-};
-
 // 获取用户信息
 const fetchUserInfo = async () => {
   try {
@@ -1217,6 +1058,10 @@ const sendAnalysisPrompt = async (
         // 累加到生成内容缓存中
         const currentContent =
           generatingContentCache.value.get(responseConversationId) || "";
+
+        // 判断是否是第一块内容
+        const isFirstChunk = currentContent === "";
+
         generatingContentCache.value.set(
           responseConversationId,
           currentContent + chunk
@@ -1227,9 +1072,13 @@ const sendAnalysisPrompt = async (
           messages.value[aiMessageIndex].content =
             generatingContentCache.value.get(responseConversationId);
 
-          // 只有当用户未主动向上滚动时，才自动滚动
-          if (!userScrolling.value) {
-            scrollToBottom();
+          // 修改这部分：如果用户已在底部，继续自动滚动
+          if (isFirstChunk && !userIntentionalScroll.value) {
+            // 首次消息且用户未滚动
+            scrollToBottom(false);
+          } else if (!userIntentionalScroll.value) {
+            // 用户已在底部，应继续自动滚动
+            scrollToBottom(false);
           }
         }
       },
@@ -1250,7 +1099,6 @@ const sendAnalysisPrompt = async (
             if (responseConversationId === currentConversationId.value) {
               messages.value = latestMessages;
               isGenerating.value = false;
-              scrollToBottom();
             }
           }
 
@@ -1303,6 +1151,154 @@ const sendAnalysisPrompt = async (
     isGenerating.value = false;
     isSending.value = false;
     generatingMessages.value.delete(currentConversationId.value);
+  }
+};
+
+// 处理键盘按键事件
+const handleKeyDown = (e) => {
+  // 如果按下Shift+Enter，不做任何处理（允许添加换行）
+  if (e.shiftKey) return;
+
+  // 如果按下Enter且没有按Shift，阻止默认行为并发送消息
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sendMessage();
+  }
+};
+
+// sendMessage 方法
+const sendMessage = async () => {
+  if (
+    !userInput.value.trim() ||
+    !currentConversationId.value ||
+    isSending.value
+  ) {
+    return;
+  }
+
+  try {
+    isSending.value = true;
+    isGenerating.value = true;
+
+    // 标记当前会话正在生成消息
+    generatingMessages.value.add(currentConversationId.value);
+
+    // 保存请求时的会话ID
+    const requestConversationId = currentConversationId.value;
+
+    // 添加用户消息
+    messages.value.push({
+      type: "user",
+      content: userInput.value,
+      time: getCurrentTime(),
+    });
+
+    // 创建AI消息占位
+    const aiMessageIndex = messages.value.length;
+    messages.value.push({
+      type: "ai",
+      content: "",
+      time: getCurrentTime(),
+    });
+
+    // 初始化生成内容缓存
+    generatingContentCache.value.set(requestConversationId, "");
+
+    // 更新消息缓存
+    messageCache.value.set(requestConversationId, [...messages.value]);
+
+    // 清空输入框
+    const userMessage = userInput.value;
+    userInput.value = "";
+
+    // 滚动到底部
+    scrollToBottom(true);
+
+    // 发送消息
+    await sendChatMessage(
+      userMessage,
+      requestConversationId,
+      (chunk, responseConversationId) => {
+        // 流式响应处理
+        if (!responseConversationId)
+          responseConversationId = requestConversationId;
+
+        // 累加到生成内容缓存中
+        const currentContent =
+          generatingContentCache.value.get(responseConversationId) || "";
+
+        // 判断是否是第一块内容
+        const isFirstChunk = currentContent === "";
+
+        generatingContentCache.value.set(
+          responseConversationId,
+          currentContent + chunk
+        );
+
+        // 如果是当前显示的对话，更新UI
+        if (responseConversationId === currentConversationId.value) {
+          messages.value[aiMessageIndex].content =
+            generatingContentCache.value.get(responseConversationId);
+
+          // 修改这部分：不仅在第一块内容时检查，而是检查用户是否在底部
+          if (isFirstChunk && !userIntentionalScroll.value) {
+            // 首次消息且用户未滚动
+            scrollToBottom(false);
+          } else if (!userIntentionalScroll.value) {
+            // 用户已在底部，应继续自动滚动
+            scrollToBottom(false);
+          }
+          // 注意：当userIntentionalScroll为true时不滚动，尊重用户向上浏览的意图
+        }
+      },
+      // 响应完成回调
+      async (responseConversationId) => {
+        if (!responseConversationId)
+          responseConversationId = requestConversationId;
+
+        try {
+          const latestMessages = await getChatHistory(responseConversationId);
+          if (latestMessages && latestMessages.length > 0) {
+            messageCache.value.set(responseConversationId, latestMessages);
+            if (responseConversationId === currentConversationId.value) {
+              messages.value = latestMessages;
+              isGenerating.value = false;
+            }
+          }
+          generatingContentCache.value.delete(responseConversationId);
+        } catch (error) {
+          console.error("获取完整消息失败:", error);
+        }
+
+        generatingMessages.value.delete(responseConversationId);
+
+        if (responseConversationId === currentConversationId.value) {
+          isGenerating.value = false;
+          isSending.value = false;
+        }
+      },
+      // 错误处理
+      (error, responseConversationId) => {
+        console.error("发送消息失败:", error);
+        if (!responseConversationId)
+          responseConversationId = requestConversationId;
+
+        generatingContentCache.value.delete(responseConversationId);
+        generatingMessages.value.delete(responseConversationId);
+
+        if (responseConversationId === currentConversationId.value) {
+          isGenerating.value = false;
+          isSending.value = false;
+          ElMessage.error(`发送失败: ${error.message || "请稍后重试"}`);
+        }
+      }
+    );
+  } catch (error) {
+    console.error("发送消息失败:", error);
+    isGenerating.value = false;
+    isSending.value = false;
+    generatingMessages.value.delete(currentConversationId.value);
+    ElMessage.error("发送消息失败，请稍后重试");
   }
 };
 
@@ -1389,9 +1385,23 @@ onMounted(async () => {
     scrollToBottom(true);
   }
 
-  // 添加滚动事件监听
+  // 在DOM更新后添加滚动事件监听
+  await nextTick();
+
   if (messageArea.value) {
+    console.log("绑定滚动事件监听器");
+    // 移除可能存在的旧事件监听器
+    messageArea.value.removeEventListener("scroll", handleScroll);
+    // 添加新的事件监听器
     messageArea.value.addEventListener("scroll", handleScroll);
+
+    // 添加调试日志
+    console.log("初始滚动状态:", {
+      userIntentionalScroll: userIntentionalScroll.value,
+      userScrolling: userScrolling.value,
+    });
+  } else {
+    console.warn("消息区域元素不存在，无法绑定滚动事件");
   }
 
   // 添加定时刷新机制，每3秒检查一次正在生成的会话
