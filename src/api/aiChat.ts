@@ -273,26 +273,68 @@ export async function updateConversationTopic(
 
 /**
  * 删除会话
- * @param conversationIds 会话ID或ID数组
+ * @param param 会话ID或ID数组
  */
 export async function deleteConversation(
-  conversationIds: string | string[]
+  param: string | string[] | { conversationIds: string[] }
 ): Promise<void> {
   try {
-    // 如果传入的是单个ID，转换为数组
-    const ids = Array.isArray(conversationIds)
-      ? conversationIds
-      : [conversationIds];
+    console.log("deleteConversation接收到的原始参数:", param);
+    console.log("参数类型:", typeof param, Array.isArray(param));
 
-    const response = await axiosInstance.post("/ai/user-conversation/delete", {
-      conversationIds: ids,
-    });
+    // 确定要发送的数据结构
+    let requestData: { conversationIds: string[] };
+
+    // 处理不同类型的输入
+    if (
+      typeof param === "object" &&
+      !Array.isArray(param) &&
+      "conversationIds" in param
+    ) {
+      // 如果是 {conversationIds: [...]} 格式，直接使用
+      requestData = param;
+      console.log("使用对象格式参数:", requestData);
+    } else {
+      // 如果是单个ID或ID数组，转换为正确格式
+      const ids = Array.isArray(param) ? param : [param];
+      requestData = { conversationIds: ids };
+      console.log("转换后的参数格式:", requestData);
+    }
+
+    // 输出实际请求数据，帮助调试
+    console.log("最终发送的请求数据:", JSON.stringify(requestData));
+    console.log(
+      "conversationIds类型:",
+      Array.isArray(requestData.conversationIds)
+    );
+
+    // 检查axiosInstance配置
+    console.log("请求URL:", "/ai/user-conversation/delete");
+    console.log("请求头:", axiosInstance.defaults.headers);
+
+    // 发送请求
+    const response = await axiosInstance.post(
+      "/ai/user-conversation/delete",
+      requestData,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("API响应:", response.data);
 
     if (!isSuccessResponse(response.data.code)) {
       throw new Error(response.data.msg || "删除会话失败");
     }
   } catch (error: any) {
-    console.error("删除会话异常:", error);
+    console.error("删除会话失败详情:", error);
+    // 如果有响应数据，输出更详细的错误信息
+    if (error.response) {
+      console.error("错误响应状态:", error.response.status);
+      console.error("错误响应数据:", error.response.data);
+    }
     throw new Error(
       error.response?.data?.msg || error.message || "删除会话失败"
     );

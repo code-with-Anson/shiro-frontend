@@ -4,15 +4,40 @@
     <div class="chat-sidebar">
       <div class="sidebar-header">
         <h2>历史对话</h2>
-        <el-button
-          type="primary"
-          size="small"
-          plain
-          @click="startNewChat"
-          :icon="Plus"
-        >
-          新对话
-        </el-button>
+        <div class="sidebar-actions">
+          <template v-if="deleteMode">
+            <el-button
+              type="danger"
+              size="small"
+              :disabled="selectedConversations.length === 0"
+              @click="confirmDelete"
+            >
+              删除({{ selectedConversations.length }})
+            </el-button>
+            <el-button type="info" size="small" @click="toggleDeleteMode">
+              取消
+            </el-button>
+          </template>
+          <template v-else>
+            <el-button
+              type="primary"
+              size="small"
+              plain
+              @click="startNewChat"
+              :icon="Plus"
+            >
+              新对话
+            </el-button>
+            <el-button
+              type="danger"
+              size="small"
+              plain
+              @click="toggleDeleteMode"
+            >
+              批量删除
+            </el-button>
+          </template>
+        </div>
       </div>
 
       <div class="history-list">
@@ -28,14 +53,26 @@
           :class="[
             'history-item',
             { active: currentConversationId === chat.conversationId },
+            { 'delete-mode': deleteMode },
           ]"
-          @click="switchChat(chat.conversationId)"
+          @click="
+            deleteMode
+              ? toggleSelection(chat.conversationId)
+              : switchChat(chat.conversationId)
+          "
         >
           <div class="history-item-content">
+            <!-- 添加复选框，在删除模式时显示 -->
+            <el-checkbox
+              v-if="deleteMode"
+              :model-value="selectedConversations.includes(chat.conversationId)"
+              @click.stop="toggleSelection(chat.conversationId)"
+              class="history-checkbox"
+            ></el-checkbox>
             <span class="history-title">{{ chat.topic }}</span>
             <span class="history-time">{{ formatTime(chat.createTime) }}</span>
           </div>
-          <div class="history-actions">
+          <div v-if="!deleteMode" class="history-actions">
             <el-tooltip content="编辑主题" placement="top" :hide-after="100">
               <el-icon @click.stop="editTopic(chat)"><Edit /></el-icon>
             </el-tooltip>
@@ -199,6 +236,27 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 批量删除确认对话框 -->
+    <el-dialog
+      v-model="showDeleteConfirmDialog"
+      title="确认批量删除"
+      width="30%"
+      :close-on-click-modal="false"
+    >
+      <span
+        >确定要删除选中的
+        {{ selectedConversations.length }} 个会话吗？此操作不可恢复。</span
+      >
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showDeleteConfirmDialog = false">取消</el-button>
+          <el-button type="danger" @click="deleteSelected" :loading="isDeleting"
+            >确认删除</el-button
+          >
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -230,7 +288,11 @@ import {
 import { getUserInfos } from "@/api/user";
 import MarkdownIt from "markdown-it";
 import { v4 as uuidv4 } from "uuid";
-
+// 批量删除相关
+const deleteMode = ref(false); // 是否处于删除模式
+const selectedConversations = ref<string[]>([]); // 已选中要删除的会话ID
+const isDeleting = ref(false); // 删除操作中的加载状态
+const showDeleteConfirmDialog = ref(false); // 删除确认弹窗
 // 创建markdown-it实例并配置
 const md = new MarkdownIt({
   html: true,
@@ -271,7 +333,7 @@ const messageCache = ref(new Map()); // 最终的完整消息
 const generatingContentCache = ref(new Map()); // 仅用于暂存生成中的内容
 
 // 用于定时刷新的定时器引用
-let refreshTimerRef = null;
+let refreshTimerRef: number | null | undefined = null;
 
 // 添加一个Map来跟踪哪些会话正在生成回复
 const generatingMessages = ref(new Set());
@@ -490,17 +552,25 @@ const saveTopic = async () => {
   }
 };
 
-// 确认删除对话框
-const confirmDelete = (conversationId: string) => {
-  deletingConversationId.value = conversationId;
-  deleteDialogVisible.value = true;
-};
-
 // 执行删除操作
 const confirmDeleteAction = async () => {
   try {
     deletingConversation.value = true;
-    await deleteConversation(deletingConversationId.value);
+
+    // 确保是有效的字符串ID
+    if (typeof deletingConversationId.value !== "string") {
+      console.error(
+        "无效的会话ID类型:",
+        typeof deletingConversationId.value,
+        deletingConversationId.value
+      );
+      throw new Error("无效的会话ID");
+    }
+
+    // 使用正确的格式调用API
+    await deleteConversation({
+      conversationIds: [deletingConversationId.value],
+    });
 
     // 如果删除的是当前会话，清空消息
     if (deletingConversationId.value === currentConversationId.value) {
@@ -517,6 +587,95 @@ const confirmDeleteAction = async () => {
     ElMessage.error(`删除会话失败: ${error.message}`);
   } finally {
     deletingConversation.value = false;
+  }
+};
+
+// 切换删除模式
+const toggleDeleteMode = () => {
+  deleteMode.value = !deleteMode.value;
+  if (!deleteMode.value) {
+    selectedConversations.value = []; // 退出删除模式时清空选中记录
+  }
+};
+
+// 选中或取消选中会话
+const toggleSelection = (conversationId: string) => {
+  // 确保传入的是字符串ID
+  if (typeof conversationId !== "string") {
+    console.error("无效的会话ID类型:", conversationId);
+    return;
+  }
+
+  const index = selectedConversations.value.indexOf(conversationId);
+  if (index >= 0) {
+    selectedConversations.value.splice(index, 1); // 移除已选中的
+  } else {
+    selectedConversations.value.push(conversationId); // 添加新选中的
+  }
+};
+
+// 打开删除确认对话框
+const confirmDelete = (conversationId?: string) => {
+  if (conversationId) {
+    // 单个删除模式
+    deletingConversationId.value = conversationId;
+    deleteDialogVisible.value = true;
+  } else {
+    // 批量删除模式
+    if (selectedConversations.value.length === 0) {
+      ElMessage.warning("请至少选择一个对话");
+      return;
+    }
+    showDeleteConfirmDialog.value = true;
+  }
+};
+
+// 执行批量删除
+const deleteSelected = async () => {
+  if (selectedConversations.value.length === 0) return;
+
+  try {
+    isDeleting.value = true;
+
+    // 过滤出有效的字符串ID
+    const conversationsToDelete = selectedConversations.value.filter(
+      (id) => typeof id === "string"
+    );
+
+    if (conversationsToDelete.length === 0) {
+      ElMessage.warning("没有有效的会话ID可删除");
+      return;
+    }
+
+    const wasCurrentConversationSelected = conversationsToDelete.includes(
+      currentConversationId.value
+    );
+
+    console.log("过滤后要删除的ID:", conversationsToDelete);
+
+    // 使用正确的格式调用API
+    await deleteConversation({ conversationIds: conversationsToDelete });
+
+    // 关闭确认对话框
+    showDeleteConfirmDialog.value = false;
+
+    ElMessage.success("删除成功");
+
+    // 如果当前会话在已删除列表中，清空消息并需要选择其他会话
+    if (wasCurrentConversationSelected) {
+      messages.value = [];
+      currentConversationId.value = "";
+    }
+
+    // 重新加载会话列表
+    await loadConversations();
+
+    // 退出删除模式
+    toggleDeleteMode();
+  } catch (error: any) {
+    ElMessage.error(`删除会话失败: ${error.message || "请重试"}`);
+  } finally {
+    isDeleting.value = false;
   }
 };
 
@@ -580,28 +739,17 @@ const loadConversations = async () => {
     if (Array.isArray(response.records)) {
       chatHistory.value = [...response.records];
     } else {
+      // 确保即使出错也清空会话列表，防止显示旧数据
       chatHistory.value = [];
-      console.warn("API返回的records不是数组:", response.records);
     }
 
-    // 更新总数
-    totalConversations.value = parseInt(String(response.total || "0"));
-
-    console.log("更新后的会话列表:", chatHistory.value);
-
-    // 如果有会话但没有选中任何会话，则选中第一个
-    if (chatHistory.value.length > 0 && !currentConversationId.value) {
-      await switchChat(chatHistory.value[0].conversationId);
+    // 设置总数，用于分页
+    if (response.total !== undefined) {
+      totalConversations.value = response.total;
     }
   } catch (error) {
-    console.error("加载会话历史失败:", error);
-    ElMessage.error(
-      typeof error === "object" && error !== null && "message" in error
-        ? `加载会话历史失败: ${(error as Error).message}`
-        : "加载会话历史失败"
-    );
-
-    // 确保即使出错也清空会话列表，防止显示旧数据
+    console.error("加载会话列表失败:", error);
+    ElMessage.error("获取会话列表失败");
     chatHistory.value = [];
   }
 };
@@ -1531,6 +1679,48 @@ onUnmounted(() => {
 .message-area::-webkit-scrollbar-track,
 .history-list::-webkit-scrollbar-track {
   background-color: #f1f1f1;
+}
+
+/* 侧边栏头部按钮组样式 */
+.sidebar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 删除模式下的历史项样式 */
+.history-item.delete-mode {
+  cursor: default;
+}
+
+.history-item.delete-mode:hover {
+  background-color: #f0f2f5;
+}
+
+.history-item.delete-mode.active {
+  background-color: #e6f7ff;
+}
+
+/* 历史项中的复选框样式 */
+.history-checkbox {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+/* 历史项内容在删除模式下的样式调整 */
+.history-item.delete-mode .history-item-content {
+  display: flex;
+  flex-direction: row; /* 明确指定水平排列 */
+  align-items: center;
+}
+
+/* 删除模式下，调整标题和时间的布局 */
+.history-item.delete-mode .history-title {
+  flex: 1;
+  margin-bottom: 0; /* 覆盖常规模式下的下边距 */
+}
+
+.history-item.delete-mode .history-time {
+  margin-left: 8px;
 }
 
 /* 响应式适配 */

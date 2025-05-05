@@ -296,7 +296,7 @@ import {
   getConversationHistory,
   getChatHistory,
   updateConversationTopic,
-  deleteConversation,
+  deleteConversation as apiDeleteConversation,
   autoUpdateConversationTopic,
   formatTime,
   getCurrentTime,
@@ -307,7 +307,54 @@ import {
 import { getUserInfos } from "@/api/user";
 import MarkdownIt from "markdown-it";
 import { v4 as uuidv4 } from "uuid";
-import { showToast } from "vant"; // 引入 Vant Toast
+import axiosInstance from "@/utils/axios"; // 修正导入路径
+// 检查 isSuccessResponse 是否在此文件中，或者直接在组件中定义这个函数
+// 如果 @/utils/request 文件不存在，你可以在组件内部定义这个辅助函数
+const isSuccessResponse = (code: any): boolean => {
+  // 成功的返回码可能是0或"20039"
+  return code === 0 || code === "0" || code === "20039";
+};
+// 删除会话
+async function deleteConversation(
+  param: string | string[] | { conversationIds: string[] }
+): Promise<void> {
+  try {
+    // 确定要发送的数据结构
+    let requestData: { conversationIds: string[] };
+
+    // 处理不同类型的输入
+    if (
+      typeof param === "object" &&
+      !Array.isArray(param) &&
+      "conversationIds" in param
+    ) {
+      // 如果是 {conversationIds: [...]} 格式，直接使用
+      requestData = param;
+    } else {
+      // 如果是单个ID或ID数组，转换为正确格式
+      const ids = Array.isArray(param) ? param : [param];
+      requestData = { conversationIds: ids };
+    }
+
+    // 输出实际请求数据，帮助调试
+    console.log("删除请求参数:", JSON.stringify(requestData));
+
+    // 发送请求
+    const response = await axiosInstance.post(
+      "/ai/user-conversation/delete",
+      requestData
+    );
+
+    if (!isSuccessResponse(response.data.code)) {
+      throw new Error(response.data.msg || "删除会话失败");
+    }
+  } catch (error: any) {
+    console.error("删除会话失败:", error);
+    throw new Error(
+      error.response?.data?.msg || error.message || "删除会话失败"
+    );
+  }
+}
 
 // --- Markdown渲染 (与之前相同) ---
 const md = new MarkdownIt({
@@ -481,6 +528,11 @@ const loadChatMessages = async (conversationId: string) => {
       messages.value = [
         { type: "system", content: "加载对话失败", time: getCurrentTime() },
       ];
+      ElMessage({
+        message: `加载对话失败: ${error.message || "请稍后重试"}`,
+        type: "error",
+        plain: true,
+      });
     } finally {
       isLoading.value = false;
       await scrollToBottom(true);
@@ -506,7 +558,11 @@ const loadChatMessages = async (conversationId: string) => {
     }
   } catch (error: any) {
     console.error("加载对话历史失败:", error);
-    showToast(`加载对话失败: ${error.message || "请稍后重试"}`);
+    ElMessage({
+      message: `加载对话失败: ${error.message || "请稍后重试"}`,
+      type: "error",
+      plain: true,
+    });
     messages.value.push({
       type: "system",
       content: "加载对话失败，请稍后重试",
@@ -560,7 +616,11 @@ const startNewChat = async () => {
     await onHistoryRefresh(); // 创建后刷新历史列表
     await scrollToBottom(true);
   } catch (error: any) {
-    showToast(`创建新会话失败: ${error.message}`);
+    ElMessage({
+      message: `创建新会话失败: ${error.message}`,
+      type: "error",
+      plain: true,
+    });
     messages.value = [
       {
         type: "system",
@@ -776,7 +836,11 @@ const sendMessage = async () => {
             cachedMsgs[aiMessageIndex].type = "system";
           }
           isSending.value = false;
-          showToast(`请求失败: ${error.message || "请稍后重试"}`);
+          ElMessage({
+            message: `请求失败: ${error.message || "请稍后重试"}`,
+            type: "error",
+            plain: true,
+          });
         }
       }
     );
@@ -803,7 +867,11 @@ const sendMessage = async () => {
         cachedMsgs[aiMessageIndex].type = "system";
       }
       isSending.value = false;
-      showToast(`发送失败: ${error.message || "请检查网络"}`);
+      ElMessage({
+        message: `发送失败: ${error.message || "请检查网络"}`,
+        type: "error",
+        plain: true,
+      });
     }
   }
 };
@@ -816,7 +884,11 @@ const handleAnalysisMode = async (
 ) => {
   const analysisDataStr = localStorage.getItem("billAnalysisData");
   if (!analysisDataStr) {
-    showToast("未找到账单分析数据");
+    ElMessage({
+      message: "未找到账单分析数据",
+      type: "warning",
+      plain: true,
+    });
     await startNewChat(); // 启动普通新对话
     return;
   }
@@ -861,7 +933,11 @@ const handleAnalysisMode = async (
     sendAnalysisPrompt(analysisData.data, timeRange, timeDesc);
   } catch (error) {
     console.error("处理账单分析数据失败:", error);
-    showToast("处理账单分析数据失败");
+    ElMessage({
+      message: "处理账单分析数据失败",
+      type: "error",
+      plain: true,
+    });
     await startNewChat(); // 出错则启动普通新对话
   } finally {
     isLoading.value = false;
@@ -875,7 +951,11 @@ const sendAnalysisPrompt = async (
 ) => {
   if (!currentConversationId.value) {
     console.error("无有效会话ID，无法发送分析请求");
-    showToast("无法发送分析请求，请先创建对话");
+    ElMessage({
+      message: "无法发送分析请求，请先创建对话",
+      type: "warning",
+      plain: true,
+    });
     return;
   }
 
@@ -1044,7 +1124,11 @@ const sendAnalysisPrompt = async (
             cachedMsgs[aiMessageIndex].content = "分析请求出错，请稍后再试。";
             cachedMsgs[aiMessageIndex].type = "system";
           }
-          showToast(`分析请求失败: ${error.message || "请稍后重试"}`);
+          ElMessage({
+            message: `分析请求失败: ${error.message || "请稍后重试"}`,
+            type: "error",
+            plain: true,
+          });
         }
       }
     );
@@ -1069,7 +1153,11 @@ const sendAnalysisPrompt = async (
         cachedMsgs[aiMessageIndex].content = "发送分析请求失败。";
         cachedMsgs[aiMessageIndex].type = "system";
       }
-      showToast(`发送分析请求失败: ${error.message || "请检查网络"}`);
+      ElMessage({
+        message: `发送分析请求失败: ${error.message || "请检查网络"}`,
+        type: "error",
+        plain: true,
+      });
     }
   }
 };
@@ -1084,7 +1172,11 @@ const loadHistory = async (
     return response;
   } catch (error: any) {
     console.error("加载会话历史失败:", error);
-    showToast(`加载会话历史失败: ${error.message || "请稍后重试"}`);
+    ElMessage({
+      message: `加载会话历史失败: ${error.message || "请稍后重试"}`,
+      type: "error",
+      plain: true,
+    });
     return null;
   }
 };
@@ -1121,7 +1213,11 @@ const loadMoreHistory = async () => {
     }
   } catch (error) {
     console.error("加载更多失败:", error);
-    showToast("加载更多失败，请重试");
+    ElMessage({
+      message: "加载更多失败，请重试",
+      type: "error",
+      plain: true,
+    });
   } finally {
     loadingHistory.value = false;
   }
@@ -1275,7 +1371,11 @@ const toggleSelection = (conversationId: string) => {
 // 打开删除确认对话框
 const confirmDelete = () => {
   if (selectedConversations.value.length === 0) {
-    showToast("请至少选择一个对话");
+    ElMessage({
+      message: "请至少选择一个对话",
+      type: "warning",
+      plain: true,
+    });
     return;
   }
   showDeleteConfirmDialog.value = true;
@@ -1293,14 +1393,18 @@ const deleteSelected = async () => {
   );
 
   try {
-    // 使用 API 中的 deleteConversation 方法，传入会话ID数组
-    await deleteConversation(conversationsToDelete);
+    // 修改这一行，使用对象格式传递参数
+    await deleteConversation({ conversationIds: conversationsToDelete });
 
     // 成功后先关闭弹窗和加载状态，再执行其他操作
     showDeleteConfirmDialog.value = false;
     isDeleting.value = false;
 
-    showToast("删除成功");
+    ElMessage({
+      message: "删除成功",
+      type: "success",
+      plain: true,
+    });
 
     // 刷新历史记录
     await onHistoryRefresh().catch((err) => {
@@ -1320,7 +1424,11 @@ const deleteSelected = async () => {
     toggleDeleteMode();
   } catch (error: any) {
     console.error("删除会话失败:", error);
-    showToast(`删除失败: ${error.message || "请重试"}`);
+    ElMessage({
+      message: `删除失败: ${error.message || "请重试"}`,
+      type: "error",
+      plain: true,
+    });
   } finally {
     // 确保无论如何都重置状态
     isDeleting.value = false;
