@@ -64,10 +64,8 @@ export async function sendChatMessage(
         timeout: 120000,
         // 使用onDownloadProgress处理流式响应
         onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
-          // 获取当前完整的响应文本
           const responseText = progressEvent.event?.target?.response || "";
 
-          // 如果有新内容，则提取新内容
           if (
             responseText &&
             responseText.length > accumulatedResponse.length
@@ -76,27 +74,29 @@ export async function sendChatMessage(
             accumulatedResponse = responseText;
 
             if (newChunk) {
-              // 解析SSE格式 - 提取data:后的内容
+              // 解析并直接处理SSE格式数据
               const lines = newChunk.split("\n");
               let processedContent = "";
 
               for (const line of lines) {
-                if (line.trim()) {
-                  const match = line.match(/^data:(.*)$/);
-                  if (match) {
-                    // 提取data:后的内容
-                    const content = match[1];
-                    if (content) {
-                      processedContent += content;
-                    }
-                  } else {
-                    // 如果不是data:格式但有内容，也包括它
-                    processedContent += line;
-                  }
+                // 空的data:行转换为换行
+                if (line === "data:" || line === "data:\r") {
+                  processedContent += "\n";
+                  console.log("发现空SSE数据行，添加换行");
+                }
+                // 提取data:后的内容
+                else if (line.startsWith("data:")) {
+                  const content = line.substring(5).trim(); // 跳过"data:"且去除首尾空格
+                  processedContent += content;
+                }
+                // 处理空行
+                else if (line.trim() === "") {
+                  // 空行在SSE中通常表示消息结束，可以添加换行
+                  console.log("发现空行，标记消息结束");
                 }
               }
 
-              // 只传递处理后的实际内容
+              // 传递处理后的内容给回调
               if (processedContent) {
                 onChunk(processedContent, conversationId);
               }

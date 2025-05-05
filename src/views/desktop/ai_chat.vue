@@ -148,7 +148,11 @@
                   <div
                     v-else
                     class="markdown-body"
-                    v-html="renderMarkdown(msg.content)"
+                    v-html="
+                      msg.content.includes('<br>')
+                        ? msg.content
+                        : renderMarkdown(msg.content)
+                    "
                   ></div>
                 </template>
               </div>
@@ -352,10 +356,30 @@ const md = new MarkdownIt({
   },
 });
 
-// 渲染markdown函数
+// 优化renderMarkdown函数，处理不完整的Markdown
 const renderMarkdown = (content: string): string => {
-  if (!content) return "";
-  return md.render(content);
+  try {
+    // 添加安全处理机制
+    if (!content) return "";
+
+    // 预处理换行符，将单个换行符替换为两个换行符
+    // 这样Markdown会将其渲染为<br>而不会等待段落完成
+    let processedContent = content.replace(/(?<!\n)\n(?!\n)/g, "\n\n");
+
+    // 检测未闭合的代码块
+    const codeBlockMatches = processedContent.match(/```[^`]*$/);
+    if (codeBlockMatches) {
+      // 如果有未闭合的代码块，添加临时闭合标记
+      processedContent += "\n```";
+    }
+
+    // 应用markdown渲染
+    return md.render(processedContent);
+  } catch (error) {
+    console.error("Markdown渲染错误:", error);
+    // 渲染失败时返回原始内容
+    return content.replace(/\n/g, "<br>");
+  }
 };
 
 interface Message {
@@ -1078,8 +1102,7 @@ const sendAnalysisPrompt = async (
             responseConversationId === currentConversationId.value &&
             aiMessageIndex < messages.value.length
           ) {
-            // 直接更新消息内容
-            messages.value[aiMessageIndex].content = newContent;
+            messages.value[aiMessageIndex].content = renderMarkdown(newContent);
 
             // 简化滚动逻辑，只要用户没有明确向上滚动，都尝试滚动到底部
             if (!userScrolling.value) {
@@ -1287,25 +1310,35 @@ const sendMessage = async () => {
         // 判断是否是第一块内容
         const isFirstChunk = currentContent === "";
 
-        generatingContentCache.value.set(
-          responseConversationId,
-          currentContent + chunk
-        );
+        // 更新累积的内容
+        const newContent = currentContent + chunk;
+        generatingContentCache.value.set(responseConversationId, newContent);
 
-        // 如果是当前显示的对话，更新UI
+        // 如果是当前显示的对话，更新UI并应用Markdown渲染
         if (responseConversationId === currentConversationId.value) {
-          messages.value[aiMessageIndex].content =
-            generatingContentCache.value.get(responseConversationId);
+          // 添加日志记录原始内容
+          console.log("【原始流式数据】", JSON.stringify(chunk));
+          console.log("【原始流式数据长度】", chunk.length);
 
-          // 修改这部分：不仅在第一块内容时检查，而是检查用户是否在底部
+          // 存储原始文本
+          const rawContent = currentContent + chunk;
+
+          // 格式化内容并保留换行
+          const htmlContent = rawContent
+            .replace(/\n/g, "<br>") // 将所有\n转为<br>
+            .replace(/<br>\s*<br>/g, "<p></p>"); // 连续换行转为段落
+
+          console.log("【处理后的HTML内容】", htmlContent);
+
+          // 将处理后的内容直接赋值给消息
+          messages.value[aiMessageIndex].content = htmlContent;
+
+          // 其他滚动逻辑保持不变
           if (isFirstChunk && !userIntentionalScroll.value) {
-            // 首次消息且用户未滚动
             scrollToBottom(false);
           } else if (!userIntentionalScroll.value) {
-            // 用户已在底部，应继续自动滚动
-            scrollToBottom(false);
+            // ...其他滚动逻辑...
           }
-          // 注意：当userIntentionalScroll为true时不滚动，尊重用户向上浏览的意图
         }
       },
       // 响应完成回调

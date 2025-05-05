@@ -737,8 +737,8 @@ const sendMessage = async () => {
             console.log("移动端收到空数据块，跳过处理");
             return;
           }
-
-          console.log("移动端接收数据块: ", chunk.length, "字符");
+          console.log("移动端接收数据块: ", JSON.stringify(chunk));
+          console.log("移动端数据块长度: ", chunk.length, "字符");
 
           const currentContent =
             generatingContentCache.value.get(responseConversationId) || "";
