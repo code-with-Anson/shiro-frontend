@@ -1325,6 +1325,39 @@ onMounted(async () => {
   // 获取用户信息和头像
   await fetchUserInfo();
 
+  // 确保DOM更新后注册滚动事件监听 - 移到最前面确保总是执行
+  await nextTick();
+  if (messageArea.value) {
+    console.log("绑定滚动事件监听器");
+    // 移除可能存在的旧事件监听器
+    messageArea.value.removeEventListener("scroll", handleScroll);
+    // 添加新的事件监听器
+    messageArea.value.addEventListener("scroll", handleScroll);
+
+    console.log("初始滚动状态:", {
+      userIntentionalScroll: userIntentionalScroll.value,
+      userScrolling: userScrolling.value,
+    });
+  } else {
+    console.warn("消息区域元素不存在，无法绑定滚动事件");
+  }
+
+  // 添加定时刷新机制，每3秒检查一次正在生成的会话 - 也移到前面
+  refreshTimerRef = setInterval(async () => {
+    // 对于正在生成中的会话，如果是当前显示的，则更新其显示内容
+    if (generatingMessages.value.has(currentConversationId.value)) {
+      const generatingContent = generatingContentCache.value.get(
+        currentConversationId.value
+      );
+      if (generatingContent) {
+        const lastAiMessageIndex = findLastAiMessageIndex(messages.value);
+        if (lastAiMessageIndex !== -1) {
+          messages.value[lastAiMessageIndex].content = generatingContent;
+        }
+      }
+    }
+  }, 3000); // 每3秒检查一次
+
   // 检查是否从账单分析跳转而来
   if (route.query.mode === "analysis" && route.query.conversationId) {
     const analysisConversationId = route.query.conversationId as string;
@@ -1402,41 +1435,6 @@ onMounted(async () => {
     // 滚动到底部
     scrollToBottom(true);
   }
-
-  // 在DOM更新后添加滚动事件监听
-  await nextTick();
-
-  if (messageArea.value) {
-    console.log("绑定滚动事件监听器");
-    // 移除可能存在的旧事件监听器
-    messageArea.value.removeEventListener("scroll", handleScroll);
-    // 添加新的事件监听器
-    messageArea.value.addEventListener("scroll", handleScroll);
-
-    // 添加调试日志
-    console.log("初始滚动状态:", {
-      userIntentionalScroll: userIntentionalScroll.value,
-      userScrolling: userScrolling.value,
-    });
-  } else {
-    console.warn("消息区域元素不存在，无法绑定滚动事件");
-  }
-
-  // 添加定时刷新机制，每3秒检查一次正在生成的会话
-  refreshTimerRef = setInterval(async () => {
-    // 对于正在生成中的会话，如果是当前显示的，则更新其显示内容
-    if (generatingMessages.value.has(currentConversationId.value)) {
-      const generatingContent = generatingContentCache.value.get(
-        currentConversationId.value
-      );
-      if (generatingContent) {
-        const lastAiMessageIndex = findLastAiMessageIndex(messages.value);
-        if (lastAiMessageIndex !== -1) {
-          messages.value[lastAiMessageIndex].content = generatingContent;
-        }
-      }
-    }
-  }, 3000); // 每3秒检查一次
 });
 
 // 组件卸载时移除事件监听
