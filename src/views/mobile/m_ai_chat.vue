@@ -744,23 +744,29 @@ const sendMessage = async () => {
             generatingContentCache.value.get(responseConversationId) || "";
           const newContent = currentContent + chunk;
           generatingContentCache.value.set(responseConversationId, newContent);
-
           // 如果是当前显示的对话，更新UI
           if (responseConversationId === currentConversationId.value) {
             if (
               messages.value[aiMessageIndex] &&
               messages.value[aiMessageIndex].type === "ai"
             ) {
-              messages.value[aiMessageIndex].content = newContent;
-            }
+              // 格式化内容并保留换行 - 应用相同的处理逻辑
+              const rawContent = newContent;
+              const htmlContent = rawContent.replace(/\n/g, "<br>"); // 将所有\n转为<br>
 
+              messages.value[aiMessageIndex].content = htmlContent;
+            }
+            // 同步更新缓存
             const cachedMsgs = messageCache.value.get(responseConversationId);
             if (
               cachedMsgs &&
               cachedMsgs[aiMessageIndex] &&
               cachedMsgs[aiMessageIndex].type === "ai"
             ) {
-              cachedMsgs[aiMessageIndex].content = newContent;
+              const rawContent = newContent;
+              const htmlContent = rawContent.replace(/\n/g, "<br>"); // 将所有\n转为<br>
+
+              cachedMsgs[aiMessageIndex].content = htmlContent;
             }
 
             // 修改这里的滚动逻辑，尊重用户滚动意图
@@ -1075,7 +1081,8 @@ const sendAnalysisPrompt = async (
             return;
           }
 
-          console.log("移动端分析接收数据块: ", chunk.length, "字符");
+          console.log("移动端分析接收数据块: ", JSON.stringify(chunk));
+          console.log("移动端分析数据块长度: ", chunk.length, "字符");
 
           const currentGenContent =
             generatingContentCache.value.get(responseConversationId) || "";
@@ -1087,15 +1094,19 @@ const sendAnalysisPrompt = async (
             messages.value[aiMessageIndex] &&
             messages.value[aiMessageIndex].type === "ai"
           ) {
-            messages.value[aiMessageIndex].content = newContent;
+            // 格式化内容并保留换行
+            const rawContent = newContent;
+            const htmlContent = rawContent.replace(/\n/g, "<br>"); // 将所有\n转为<br>
 
+            messages.value[aiMessageIndex].content = htmlContent;
+            // 同步更新缓存
             const cachedMsgs = messageCache.value.get(responseConversationId);
             if (
               cachedMsgs &&
               cachedMsgs[aiMessageIndex] &&
               cachedMsgs[aiMessageIndex].type === "ai"
             ) {
-              cachedMsgs[aiMessageIndex].content = newContent;
+              cachedMsgs[aiMessageIndex].content = htmlContent;
             }
 
             // 修改滚动逻辑，尊重用户滚动意图
