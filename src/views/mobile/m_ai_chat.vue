@@ -1489,6 +1489,7 @@ const deleteSelected = async () => {
       message: "删除成功",
       type: "success",
       plain: true,
+      duration: 1200,
     });
 
     // 刷新历史记录
@@ -1844,7 +1845,7 @@ onUnmounted(() => {
 .history-popup-content {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 96%;
   width: 100%; /* 确保宽度也是100% */
   background-color: #f8f8f8;
   overflow: hidden;
@@ -1862,7 +1863,7 @@ onUnmounted(() => {
 /* 增强滚动容器设置 */
 .history-list-mobile {
   flex: 1;
-  height: 100%; /* 使用100%高度而不是0 */
+  height: 96%;
   width: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
